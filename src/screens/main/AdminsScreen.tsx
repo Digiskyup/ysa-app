@@ -4,11 +4,13 @@ import {
   Text,
   Button,
   Icon,
+  Spinner,
   useTheme,
   Toggle,
 } from '@ui-kitten/components';
 import { NotificationBell } from '../../components/NotificationBell';
 import { selectLocale } from '../../redux/slices/appSlice';
+import { selectUserRole } from '../../redux/slices/authSlice';
 import { useAppSelector } from '../../redux/hooks';
 import { i18n } from '../../i18n';
 import {
@@ -43,19 +45,21 @@ const ROLE_FILTERS = [
 ];
 
 const ALL_PERMISSIONS = [
-  { key: PermissionActions.STUDENT_CREATE, label: 'Create Students' },
-  { key: PermissionActions.STUDENT_READ, label: 'View Students' },
-  { key: PermissionActions.STUDENT_UPDATE, label: 'Update Students' },
-  { key: PermissionActions.STUDENT_DELETE, label: 'Delete Students' },
-  { key: PermissionActions.PAYMENT_RECORD, label: 'Record Payments' },
-  { key: PermissionActions.PAYMENT_READ, label: 'View Payments' },
-  { key: PermissionActions.PAYMENT_APPROVE, label: 'Approve Payments' },
+  { key: PermissionActions.STUDENT_CREATE, labelKey: 'perm_create_students' },
+  { key: PermissionActions.STUDENT_READ, labelKey: 'perm_view_students' },
+  { key: PermissionActions.STUDENT_UPDATE, labelKey: 'perm_update_students' },
+  { key: PermissionActions.STUDENT_DELETE, labelKey: 'perm_delete_students' },
+  { key: PermissionActions.PAYMENT_RECORD, labelKey: 'perm_record_payments' },
+  { key: PermissionActions.PAYMENT_READ, labelKey: 'perm_view_payments' },
+  { key: PermissionActions.PAYMENT_APPROVE, labelKey: 'perm_approve_payments' },
 ];
 
-export const AdminsScreen = ({ isTabMode = false }: any) => {
+export const AdminsScreen = ({ isTabMode = false, triggerAdd = 0 }: any) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const locale = useAppSelector(selectLocale); // Listen for language changes
+  const currentUserRole = useAppSelector(selectUserRole);
+  const isSuperAdmin = currentUserRole === UserRole.SUPER_ADMIN;
 
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [selectedRole, setSelectedRole] = useState<RoleFilter>('all');
@@ -66,6 +70,16 @@ export const AdminsScreen = ({ isTabMode = false }: any) => {
   const [editedPermissions, setEditedPermissions] = useState<string[]>([]);
   const [filters] = useState(ROLE_FILTERS);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSavingStaff, setIsSavingStaff] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (triggerAdd > 0) {
+      setAddModalVisible(true);
+    }
+  }, [triggerAdd]);
 
   const fetchStaff = async () => {
     setIsLoading(true);
@@ -126,33 +140,103 @@ export const AdminsScreen = ({ isTabMode = false }: any) => {
               : a
           )
         );
-        Alert.alert(i18n.t('success', { defaultValue: 'Success' }), i18n.t('msg_permissions_updated', { defaultValue: 'Permissions updated' }));
+        Alert.alert(i18n.t('success'), i18n.t('msg_permissions_updated'));
       } catch (err) {
-        Alert.alert(i18n.t('error', { defaultValue: 'Error' }), i18n.t('err_update_permissions', { defaultValue: 'Failed to update permissions' }));
+        Alert.alert(i18n.t('error'), i18n.t('err_update_permissions'));
       }
     }
     setEditModalVisible(false);
   };
 
   const handleAddAdmin = async () => {
-    if (!newName.trim() || !newEmail.trim()) return;
-    try {
-      const newAdmin = await UserService.createStaff({
-        email: newEmail.trim(),
-        name: newName.trim(),
-        role: newRole,
-        phone: newPhone.trim(),
-        password: 'TemporaryPassword123!', 
-      });
-      setAdmins((prev) => [...prev, newAdmin as AdminUser]);
-      setAddModalVisible(false);
-      setNewName('');
-      setNewEmail('');
-      setNewPhone('');
-      Alert.alert(i18n.t('success', { defaultValue: 'Success' }), i18n.t('msg_staff_created', { defaultValue: 'Staff member created successfully' }));
-    } catch (error: any) {
-      Alert.alert(i18n.t('error', { defaultValue: 'Error' }), error.response?.data?.error?.message || error.message || i18n.t('err_create_staff', { defaultValue: 'Failed to create staff' }));
+    if (!newName.trim() || !newEmail.trim() || (!selectedAdmin && !newPassword.trim())) {
+      Alert.alert(i18n.t('error'), i18n.t('err_fill_required'));
+      return;
     }
+    setFieldErrors({});
+    setIsSavingStaff(true);
+    try {
+      if (selectedAdmin) {
+        // Update existing staff
+        const updatedStaff = await UserService.updateStaff(selectedAdmin._id, {
+          email: newEmail.trim(),
+          name: newName.trim(),
+          role: newRole,
+          phone: newPhone.trim(),
+        });
+        setAdmins((prev) =>
+          prev.map((a) => (a._id === selectedAdmin._id ? { ...a, ...updatedStaff } : a))
+        );
+        Alert.alert(i18n.t('success'), i18n.t('msg_staff_updated'));
+      } else {
+        // Create new staff
+        const newAdmin = await UserService.createStaff({
+          email: newEmail.trim(),
+          name: newName.trim(),
+          role: newRole,
+          phone: newPhone.trim(),
+          password: newPassword, 
+        });
+        setAdmins((prev) => [...prev, newAdmin as AdminUser]);
+        Alert.alert(i18n.t('success'), i18n.t('msg_staff_created'));
+      }
+      setAddModalVisible(false);
+      resetForm();
+    } catch (error: any) {
+      if (error.response?.status === 400 && error.response?.data?.error?.details) {
+        setFieldErrors(error.response.data.error.details);
+      } else {
+        Alert.alert(i18n.t('error'), error.response?.data?.error?.message || error.message || i18n.t('err_create_staff'));
+      }
+    } finally {
+      setIsSavingStaff(false);
+    }
+  };
+
+  const resetForm = () => {
+    setNewName('');
+    setNewEmail('');
+    setNewPhone('');
+    setNewPassword('');
+    setSelectedAdmin(null);
+    setFieldErrors({});
+  };
+
+  const handleEditStaff = (admin: AdminUser) => {
+    setSelectedAdmin(admin);
+    setNewName(admin.name);
+    setNewEmail(admin.email);
+    setNewPhone(admin.phone || '');
+    setNewRole(admin.role as UserRole.ADMIN | UserRole.RECEPTIONIST);
+    setNewPassword('');
+    setFieldErrors({});
+    setEditModalVisible(false);
+    // Add small delay to allow previous modal to close smoothly on some devices
+    setTimeout(() => setAddModalVisible(true), 150);
+  };
+
+  const handleDeleteStaff = (admin: AdminUser) => {
+    Alert.alert(
+      i18n.t('confirm_delete'),
+      i18n.t('msg_confirm_delete_staff'),
+      [
+        { text: i18n.t('cancel'), style: 'cancel' },
+        {
+          text: i18n.t('delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await UserService.deleteStaff(admin._id);
+              setAdmins((prev) => prev.filter((a) => a._id !== admin._id));
+              setEditModalVisible(false);
+              Alert.alert(i18n.t('success'), i18n.t('msg_staff_deleted'));
+            } catch (err) {
+              Alert.alert(i18n.t('error'), i18n.t('err_delete_staff'));
+            }
+          },
+        },
+      ]
+    );
   };
 
   const renderAdmin = ({ item }: { item: AdminUser }) => (
@@ -169,20 +253,10 @@ export const AdminsScreen = ({ isTabMode = false }: any) => {
               {i18n.t('nav_admins')}
             </Text>
             <Text category="c1" appearance="hint">
-              {admins.length} {`${i18n.t('staff_members')}`}
+              {`${admins.length} ${i18n.t(admins.length === 1 ? 'staff_member' : 'staff_members')}`}
             </Text>
           </View>
-          <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
-            <Button
-              size="small"
-              accessoryLeft={(props: any) => <Icon {...props} name="add-outline" />}
-              onPress={() => setAddModalVisible(true)}
-              style={{ borderRadius: borderRadius.lg }}
-            >
-              {`${i18n.t('add')}`}
-            </Button>
-            <NotificationBell />
-          </View>
+          <NotificationBell />
         </View>
       )}
 
@@ -221,17 +295,16 @@ export const AdminsScreen = ({ isTabMode = false }: any) => {
         ListEmptyComponent={
           <EmptyState
             icon="shield-outline"
-            title={i18n.t('no_staff', { defaultValue: 'No staff found' })}
-            message="Add admins or receptionists to manage your academy"
+            title={i18n.t('no_staff')}
+            message={i18n.t('msg_no_staff_description')}
           />
         }
       />
 
-      {/* Edit Permissions Modal */}
       <BottomSheetModal
         visible={editModalVisible}
         onClose={() => setEditModalVisible(false)}
-        title={i18n.t('edit_permissions', { defaultValue: 'Edit Permissions' })}
+        title={i18n.t('staff_details', { defaultValue: 'Staff Details' })}
       >
         {selectedAdmin && (
           <View style={styles.modalContent}>
@@ -250,41 +323,69 @@ export const AdminsScreen = ({ isTabMode = false }: any) => {
                   },
                 ]}
               >
-                <Text
-                  category="c2"
-                  style={{
-                    color:
-                      selectedAdmin.role === UserRole.ADMIN
-                        ? theme['color-info-500']
-                        : theme['color-primary-500'],
-                    textTransform: 'capitalize',
-                  }}
-                >
-                  {selectedAdmin.role}
-                </Text>
+                  <Text
+                    category="c2"
+                    style={{
+                      color:
+                        selectedAdmin.role === UserRole.ADMIN
+                          ? theme['color-info-500']
+                          : theme['color-primary-500'],
+                      textTransform: 'capitalize',
+                    }}
+                  >
+                    {i18n.t(`role_${selectedAdmin.role.toLowerCase()}`)}
+                  </Text>
               </View>
             </View>
 
-            <Text category="s2" appearance="hint" style={{ marginTop: spacing.lg, marginBottom: spacing.md }}>
-              Permissions
-            </Text>
+            {/* Actions Section - Moved up for visibility */}
+            {isSuperAdmin && selectedAdmin.role !== UserRole.SUPER_ADMIN && (
+              <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg }}>
+                <Button 
+                  style={{ flex: 1 }} 
+                  appearance="outline"
+                  size="small"
+                  accessoryLeft={(props) => <Icon {...props} name="create-outline" />}
+                  onPress={() => handleEditStaff(selectedAdmin)}
+                >
+                  {i18n.t('action_edit')}
+                </Button>
+                <Button 
+                  style={{ flex: 1 }} 
+                  status="danger" 
+                  appearance="outline" 
+                  size="small"
+                  accessoryLeft={(props) => <Icon {...props} name="trash-outline" />}
+                  onPress={() => handleDeleteStaff(selectedAdmin)}
+                >
+                  {i18n.t('action_delete')}
+                </Button>
+              </View>
+            )}
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.lg, marginBottom: spacing.md }}>
+              <Text category="s2" appearance="hint">
+                {i18n.t('permissions')}
+              </Text>
+              <Button
+                size="tiny"
+                status="primary"
+                accessoryLeft={(props) => <Icon {...props} name="save-outline" />}
+                onPress={handleSavePermissions}
+              >
+                {i18n.t('save_permissions')}
+              </Button>
+            </View>
 
             {ALL_PERMISSIONS.map((perm) => (
               <View key={perm.key} style={styles.permissionRow}>
-                <Text category="s1">{perm.label}</Text>
+                <Text category="s1" style={{ flex: 1, marginRight: spacing.sm }}>{i18n.t(perm.labelKey)}</Text>
                 <Toggle
                   checked={editedPermissions.includes(perm.key)}
                   onChange={() => handleTogglePermission(perm.key)}
                 />
               </View>
             ))}
-
-            <Button
-              style={styles.saveButton}
-              onPress={handleSavePermissions}
-            >
-              Save Permissions
-            </Button>
           </View>
         )}
       </BottomSheetModal>
@@ -292,39 +393,66 @@ export const AdminsScreen = ({ isTabMode = false }: any) => {
       {/* Add Admin Modal */}
       <BottomSheetModal
         visible={addModalVisible}
-        onClose={() => setAddModalVisible(false)}
-        title={i18n.t('add_staff', { defaultValue: 'Add Staff Member' })}
+        onClose={() => {
+          setAddModalVisible(false);
+          resetForm();
+        }}
+        title={selectedAdmin ? i18n.t('edit_staff') : i18n.t('add_staff')}
       >
         <View style={styles.modalContent}>
           <YInput
-            label="Full Name"
-            placeholder={i18n.t('placeholder_fullname', { defaultValue: 'Enter full name' })}
+            label={i18n.t('full_name')}
+            placeholder={i18n.t('placeholder_fullname')}
             value={newName}
             onChangeText={setNewName}
             style={{ marginBottom: spacing.lg }}
+            status={fieldErrors.name ? 'danger' : 'basic'}
+            caption={fieldErrors.name}
           />
 
           <YInput
-            label="Email"
-            placeholder={i18n.t('placeholder_email', { defaultValue: 'Enter email address' })}
+            label={i18n.t('email')}
+            placeholder={i18n.t('placeholder_email')}
             value={newEmail}
             onChangeText={setNewEmail}
             keyboardType="email-address"
             autoCapitalize="none"
             style={{ marginBottom: spacing.lg }}
+            status={fieldErrors.email ? 'danger' : 'basic'}
+            caption={fieldErrors.email}
           />
 
           <YInput
-            label="Phone"
-            placeholder={i18n.t('placeholder_phone', { defaultValue: 'Enter phone number' })}
+            label={i18n.t('phone')}
+            placeholder={i18n.t('placeholder_phone')}
             value={newPhone}
             onChangeText={setNewPhone}
             keyboardType="phone-pad"
             style={{ marginBottom: spacing.lg }}
+            status={fieldErrors.phone ? 'danger' : 'basic'}
+            caption={fieldErrors.phone}
           />
 
+          {!selectedAdmin && (
+            <YInput
+              label={i18n.t('password')}
+              placeholder={i18n.t('placeholder_temp_password')}
+              value={newPassword}
+              onChangeText={setNewPassword}
+              secureTextEntry={!showPassword}
+              style={{ marginBottom: spacing.lg }}
+              status={fieldErrors.password ? 'danger' : 'basic'}
+              caption={fieldErrors.password}
+              accessoryRight={(props) => (
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <Icon {...props} name={showPassword ? 'eye-outline' : 'eye-off-outline'} />
+                </TouchableOpacity>
+              )}
+            />
+          )}
+
           <Text category="label" style={{ marginBottom: spacing.sm }}>
-            Role
+            {i18n.t('role')}
           </Text>
           <View style={styles.roleSelector}>
             <TouchableOpacity
@@ -368,9 +496,10 @@ export const AdminsScreen = ({ isTabMode = false }: any) => {
           <Button
             style={styles.saveButton}
             onPress={handleAddAdmin}
-            disabled={!newName || !newEmail}
+            disabled={isSavingStaff || !newName || !newEmail}
+            accessoryLeft={isSavingStaff ? () => <Spinner size="small" status="control" /> : undefined}
           >
-            {`${i18n.t('add_staff')}`}
+            {isSavingStaff ? '' : (selectedAdmin ? i18n.t('action_update_staff') : i18n.t('add_staff'))}
           </Button>
         </View>
       </BottomSheetModal>

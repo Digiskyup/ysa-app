@@ -73,7 +73,7 @@ export const HomeScreen = ({ navigation }: any) => {
                  icon="person-add-outline" 
                  title={i18n.t('action_add_student', { defaultValue: 'Add Student' })} 
                  color={theme['color-info-500']}
-                 onPress={() => navigation.navigate('CreateStudent')}
+                 onPress={() => navigation.navigate('Users')}
                />
                <QuickAction 
                  icon="shield-outline" 

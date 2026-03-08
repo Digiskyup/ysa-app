@@ -10,6 +10,7 @@ import {
   Select,
   SelectItem,
   IndexPath,
+  Spinner,
   useTheme,
 } from '@ui-kitten/components';
 import {
@@ -28,12 +29,9 @@ import UserService from '../../services/UserService';
 import { YInput } from '../../components/YInput';
 import { UserRole } from '../../types';
 import { spacing, borderRadius, shadows } from '../../theme';
+import { LanguageSelector, LANGUAGES } from '../../components/LanguageSelector';
 
-const LANGUAGES: { label: string; value: Locale }[] = [
-  { label: 'English', value: 'en' },
-  { label: 'हिंदी (Hindi)', value: 'hi' },
-  { label: 'বাংলা (Bengali)', value: 'bn' },
-];
+// Removed local LANGUAGES array as it's now in LanguageSelector
 
 export const ProfileScreen = ({ navigation }: any) => {
   const theme = useTheme();
@@ -47,8 +45,17 @@ export const ProfileScreen = ({ navigation }: any) => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editName, setEditName] = useState(user?.name || '');
   const [editPhone, setEditPhone] = useState(user?.phone || '');
+  const [isSaving, setIsSaving] = useState(false);
 
-  const languageIndex = LANGUAGES.findIndex((l) => l.value === currentLocale);
+  // Change Password States
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const getRoleBadgeColor = () => {
     switch (user?.role) {
@@ -77,6 +84,7 @@ export const ProfileScreen = ({ navigation }: any) => {
   };
 
   const handleSaveProfile = async () => {
+    setIsSaving(true);
     try {
       const updatedUser = await UserService.updateProfile({
         name: editName,
@@ -92,13 +100,47 @@ export const ProfileScreen = ({ navigation }: any) => {
     } catch (error) {
       console.error('Failed to update profile', error);
       Alert.alert(i18n.t('error', { defaultValue: 'Error' }), i18n.t('err_update_profile', { defaultValue: 'Failed to update profile' }));
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleLanguageChange = (index: IndexPath | IndexPath[]) => {
-    const selectedIndex = Array.isArray(index) ? index[0] : index;
-    dispatch(setLocale(LANGUAGES[selectedIndex.row].value));
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      Alert.alert(i18n.t('error'), i18n.t('err_fill_required'));
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      Alert.alert(i18n.t('error'), i18n.t('err_passwords_dont_match'));
+      return;
+    }
+
+    setFieldErrors({});
+    setIsChangingPassword(true);
+    try {
+      await UserService.changePassword({
+        currentPassword,
+        newPassword,
+      });
+      Alert.alert(i18n.t('success'), i18n.t('msg_password_changed'));
+      setPasswordModalVisible(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      if (error.response?.status === 400 && error.response?.data?.error?.details) {
+        setFieldErrors(error.response.data.error.details);
+      } else {
+        const errorMsg = error.response?.data?.error?.message || error.message || i18n.t('err_password_change');
+        Alert.alert(i18n.t('error'), errorMsg);
+      }
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
+
+  // handleLanguageChange moved to LanguageSelector component
 
   const MenuItem = ({
     icon,
@@ -248,6 +290,11 @@ export const ProfileScreen = ({ navigation }: any) => {
             title={i18n.t('edit_profile')}
             onPress={() => setEditModalVisible(true)}
           />
+          <MenuItem
+            icon="lock-outline"
+            title={i18n.t('change_password')}
+            onPress={() => setPasswordModalVisible(true)}
+          />
           <MenuItem icon="notifications-outline" title={i18n.t('notifications')} />
           <MenuItem icon="shield-outline" title={i18n.t('privacy')} />
         </View>
@@ -273,17 +320,12 @@ export const ProfileScreen = ({ navigation }: any) => {
             icon="globe-outline"
             title={i18n.t('language')}
             accessory={
-              <Select
-                selectedIndex={new IndexPath(languageIndex >= 0 ? languageIndex : 0)}
-                onSelect={handleLanguageChange}
-                value={LANGUAGES.find((l) => l.value === currentLocale)?.label}
-                style={styles.languageSelect}
-                size="small"
-              >
-                {LANGUAGES.map((lang) => (
-                  <SelectItem key={lang.value} title={lang.label} />
-                ))}
-              </Select>
+              <LanguageSelector 
+                showLabel={false} 
+                size="small" 
+                showIcon={false}
+                style={styles.languageSelect} 
+              />
             }
           />
         </View>
@@ -354,8 +396,69 @@ export const ProfileScreen = ({ navigation }: any) => {
           <Button
             style={styles.saveButton}
             onPress={handleSaveProfile}
+            disabled={isSaving}
+            accessoryLeft={isSaving ? () => <Spinner size="small" status="control" /> : undefined}
           >
-            {i18n.t('action_save_changes', { defaultValue: 'Save Changes' })}
+            {isSaving ? '' : i18n.t('action_save_changes', { defaultValue: 'Save Changes' })}
+          </Button>
+        </View>
+      </BottomSheetModal>
+
+      {/* Change Password Modal */}
+      <BottomSheetModal
+        visible={passwordModalVisible}
+        onClose={() => setPasswordModalVisible(false)}
+        title={i18n.t('change_password')}
+      >
+        <View style={styles.modalContent}>
+          <YInput
+            label={i18n.t('current_password')}
+            placeholder={i18n.t('placeholder_current_password')}
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+            secureTextEntry={!showCurrentPassword}
+            style={{ marginBottom: spacing.lg }}
+            status={fieldErrors.currentPassword ? 'danger' : 'basic'}
+            caption={fieldErrors.currentPassword}
+            accessoryRight={(props) => (
+              <TouchableOpacity onPress={() => setShowCurrentPassword(!showCurrentPassword)}>
+                <Icon {...props} name={showCurrentPassword ? 'eye-outline' : 'eye-off-outline'} />
+              </TouchableOpacity>
+            )}
+          />
+
+          <YInput
+            label={i18n.t('new_password')}
+            placeholder={i18n.t('placeholder_create_password')}
+            value={newPassword}
+            onChangeText={setNewPassword}
+            secureTextEntry={!showNewPassword}
+            style={{ marginBottom: spacing.lg }}
+            status={fieldErrors.newPassword ? 'danger' : 'basic'}
+            caption={fieldErrors.newPassword}
+            accessoryRight={(props) => (
+              <TouchableOpacity onPress={() => setShowNewPassword(!showNewPassword)}>
+                <Icon {...props} name={showNewPassword ? 'eye-outline' : 'eye-off-outline'} />
+              </TouchableOpacity>
+            )}
+          />
+
+          <YInput
+            label={i18n.t('confirm_password')}
+            placeholder={i18n.t('placeholder_confirm_password')}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry={!showNewPassword}
+            style={{ marginBottom: spacing.lg }}
+          />
+
+          <Button
+            style={styles.saveButton}
+            onPress={handleChangePassword}
+            disabled={isChangingPassword}
+            accessoryLeft={isChangingPassword ? () => <Spinner size="small" status="control" /> : undefined}
+          >
+            {isChangingPassword ? '' : i18n.t('change_password')}
           </Button>
         </View>
       </BottomSheetModal>

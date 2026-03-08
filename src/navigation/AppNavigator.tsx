@@ -6,8 +6,6 @@ import { SignUpScreen } from '../screens/auth/SignUpScreen';
 import { BottomTabNavigator } from './BottomTabNavigator';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { ResetPasswordScreen } from '../screens/auth/ResetPasswordScreen';
-import { CreateStudentScreen } from '../screens/main/CreateStudentScreen';
-import { EditStudentScreen } from '../screens/main/EditStudentScreen';
 import { useAppSelector } from '../redux/hooks';
 
 const Stack = createStackNavigator();
@@ -30,8 +28,6 @@ export const AppNavigator = () => {
           <>
             <Stack.Screen name="Main" component={BottomTabNavigator} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
-            <Stack.Screen name="CreateStudent" component={CreateStudentScreen} />
-            <Stack.Screen name="EditStudent" component={EditStudentScreen} />
           </>
         )}
       </Stack.Navigator>

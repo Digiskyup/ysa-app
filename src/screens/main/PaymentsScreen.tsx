@@ -445,6 +445,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
   },
   filterContainer: {
+    marginTop: spacing.md,
     marginBottom: spacing.md,
   },
   listContent: {

@@ -29,6 +29,7 @@ import { UserRole, User } from '../../types';
 import { AuthService } from '../../services/AuthService';
 import { spacing, borderRadius } from '../../theme';
 import { i18n } from '../../i18n';
+import { LanguageSelector } from '../../components/LanguageSelector';
 
 // Only student self-signup by default
 const SIGNUP_ROLES = [
@@ -63,38 +64,38 @@ export const SignUpScreen = ({ navigation }: any) => {
     dispatch(clearError());
 
     if (!name.trim()) {
-      dispatch(setError('Please enter your name'));
+      dispatch(setError(i18n.t('err_enter_name')));
       return false;
     }
 
     if (!email.trim()) {
-      dispatch(setError('Please enter your email'));
+      dispatch(setError(i18n.t('err_enter_email')));
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      dispatch(setError('Please enter a valid email address'));
+      dispatch(setError(i18n.t('err_invalid_email')));
       return false;
     }
 
     if (!phone.trim()) {
-      dispatch(setError('Please enter your phone number'));
+      dispatch(setError(i18n.t('err_enter_phone')));
       return false;
     }
 
     if (password.length < 8) {
-      dispatch(setError('Password must be at least 8 characters'));
+      dispatch(setError(i18n.t('err_password_too_short')));
       return false;
     }
 
     if (password !== confirmPassword) {
-      dispatch(setError('Passwords do not match'));
+      dispatch(setError(i18n.t('err_passwords_dont_match')));
       return false;
     }
 
     if (!acceptTerms) {
-      dispatch(setError('Please accept the terms and conditions'));
+      dispatch(setError(i18n.t('err_accept_terms')));
       return false;
     }
 
@@ -118,7 +119,7 @@ export const SignUpScreen = ({ navigation }: any) => {
       dispatch(loginSuccess(response));
       // Navigation is handled automatically by AppNavigator
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || i18n.t('signup_failed', { defaultValue: 'Signup failed. Please try again.' });
+      const errorMessage = err.response?.data?.message || err.message || i18n.t('err_signup_failed');
       dispatch(setError(errorMessage));
     } finally {
       dispatch(setLoading(false));
@@ -141,10 +142,10 @@ export const SignUpScreen = ({ navigation }: any) => {
       } else if (error.code === statusCodes.IN_PROGRESS) {
         // operation (e.g. sign in) is in progress already
       } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        dispatch(setError('Play services not available'));
+        dispatch(setError(i18n.t('err_play_services_unavailable')));
         dispatch(setLoading(false));
       } else {
-        dispatch(setError(error.message || i18n.t('google_signup_failed', { defaultValue: 'Google Sign-Up failed' })));
+        dispatch(setError(error.message || i18n.t('err_google_signup_failed')));
         dispatch(setLoading(false));
       }
     }
@@ -156,7 +157,7 @@ export const SignUpScreen = ({ navigation }: any) => {
        const res = await AuthService.googleAuth(idToken);
        dispatch(loginSuccess(res));
     } catch (err: any) {
-       dispatch(setError(err.message || i18n.t('google_signup_failed', { defaultValue: 'Google Sign-Up failed' })));
+       dispatch(setError(err.message || i18n.t('err_google_signup_failed')));
     } finally {
        dispatch(setLoading(false));
     }
@@ -221,13 +222,13 @@ export const SignUpScreen = ({ navigation }: any) => {
               category="h4"
               style={[styles.title, { color: theme['text-basic-color'] }]}
             >
-              {i18n.t('create_account', { defaultValue: 'Create Account' })}
+              {i18n.t('create_account')}
             </Text>
             <Text
               category="s1"
               style={{ color: theme['text-hint-color'], marginTop: spacing.xs }}
             >
-              {i18n.t('signup_to_start', { defaultValue: 'Sign up to get started' })}
+              {i18n.t('signup_to_start')}
             </Text>
           </View>
 
@@ -236,8 +237,8 @@ export const SignUpScreen = ({ navigation }: any) => {
             {/* Name Input */}
             <View style={styles.inputWrapper}>
               <YInput
-                label={i18n.t('full_name', { defaultValue: 'Full Name' })}
-                placeholder={i18n.t('placeholder_fullname', { defaultValue: 'Enter your full name' })}
+                label={i18n.t('full_name')}
+                placeholder={i18n.t('placeholder_fullname')}
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
@@ -250,8 +251,8 @@ export const SignUpScreen = ({ navigation }: any) => {
             {/* Email Input */}
             <View style={styles.inputWrapper}>
               <YInput
-                label={i18n.t('email', { defaultValue: 'Email' })}
-                placeholder={i18n.t('placeholder_email', { defaultValue: 'Enter your email' })}
+                label={i18n.t('email')}
+                placeholder={i18n.t('placeholder_email')}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -265,8 +266,8 @@ export const SignUpScreen = ({ navigation }: any) => {
             {/* Phone Input */}
             <View style={styles.inputWrapper}>
               <YInput
-                label={i18n.t('phone', { defaultValue: 'Phone Number' })}
-                placeholder={i18n.t('placeholder_phone', { defaultValue: 'Enter your phone number' })}
+                label={i18n.t('phone')}
+                placeholder={i18n.t('placeholder_phone')}
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
@@ -279,20 +280,21 @@ export const SignUpScreen = ({ navigation }: any) => {
             {/* Role Selector */}
             <View style={styles.inputWrapper}>
               <Text category="label" style={styles.label}>
-                {i18n.t('register_as', { defaultValue: 'Register As' })}
+                {i18n.t('register_as')}
               </Text>
               <Select
                 selectedIndex={selectedRoleIndex}
                 onSelect={(index) => setSelectedRoleIndex(index as IndexPath)}
-                value={selectedRole.label}
+                value={i18n.t(`role_${selectedRole.value.toLowerCase()}`)}
                 style={styles.select}
                 size="large"
+                disabled={true}
                 accessoryLeft={(props: any) => (
                   <Icon {...props} name="person-outline" fill={theme['text-hint-color']} />
                 )}
               >
                 {SIGNUP_ROLES.map((role) => (
-                  <SelectItem key={role.value} title={role.label} />
+                  <SelectItem key={role.value} title={i18n.t(`role_${role.value.toLowerCase()}`)} />
                 ))}
               </Select>
             </View>
@@ -300,8 +302,8 @@ export const SignUpScreen = ({ navigation }: any) => {
             {/* Password Input */}
             <View style={styles.inputWrapper}>
               <YInput
-                label={i18n.t('password', { defaultValue: 'Password' })}
-                placeholder={i18n.t('placeholder_create_password', { defaultValue: 'Create a password' })}
+                label={i18n.t('password')}
+                placeholder={i18n.t('placeholder_create_password')}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -315,8 +317,8 @@ export const SignUpScreen = ({ navigation }: any) => {
             {/* Confirm Password Input */}
             <View style={styles.inputWrapper}>
               <YInput
-                label={i18n.t('confirm_password', { defaultValue: 'Confirm Password' })}
-                placeholder={i18n.t('placeholder_confirm_password', { defaultValue: 'Confirm your password' })}
+                label={i18n.t('confirm_password')}
+                placeholder={i18n.t('confirm_password')}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry={!showPassword}
@@ -335,19 +337,19 @@ export const SignUpScreen = ({ navigation }: any) => {
               >
                 {() => (
                   <Text category="c1" style={styles.termsText}>
-                    {`${i18n.t('agree_to', { defaultValue: 'I agree to the' })} `}
+                    {`${i18n.t('agree_to')} `}
                     <Text
                       style={{ color: theme['color-primary-500'] }}
                       category="c1"
                     >
-                      {i18n.t('terms_of_service', { defaultValue: 'Terms of Service' })}
+                      {i18n.t('terms_of_service')}
                     </Text>
-                    {` ${i18n.t('and', { defaultValue: 'and' })} `}
+                    {` ${i18n.t('and')} `}
                     <Text
                       style={{ color: theme['color-primary-500'] }}
                       category="c1"
                     >
-                      {i18n.t('privacy_policy', { defaultValue: 'Privacy Policy' })}
+                      {i18n.t('privacy_policy')}
                     </Text>
                   </Text>
                 )}
@@ -373,22 +375,23 @@ export const SignUpScreen = ({ navigation }: any) => {
             >
               {isLoading ? '' : i18n.t('create_account', { defaultValue: 'Create Account' })}
             </Button>
-
-
-
             {/* Sign In Link */}
             <View style={styles.signinContainer}>
-              <Text category="s1" style={{ color: theme['text-hint-color'] }}>
-                {`${i18n.t('already_have_account', { defaultValue: 'Already have an account?' })} `}
-              </Text>
-              <TouchableOpacity onPress={() => navigation.goBack()}>
-                <Text
-                  category="s1"
-                  style={{ color: theme['color-primary-500'], fontWeight: '600' }}
-                >
-                  {i18n.t('signin', { defaultValue: 'Sign In' })}
+              <View style={{ flexDirection: 'row' }}>
+                <Text category="s1" style={{ color: theme['text-hint-color'] }}>
+                  {`${i18n.t('already_have_account')} `}
                 </Text>
-              </TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                  <Text category="s1" style={{ color: theme['color-primary-500'], fontWeight: '600' }}>
+                    {i18n.t('signin')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Language Selector */}
+            <View style={styles.languageContainer}>
+              <LanguageSelector style={{ width: 160, alignSelf: 'center' }} />
             </View>
           </View>
         </ScrollView>
@@ -477,8 +480,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing['2xl'],
   },
   signinContainer: {
-    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  languageContainer: {
+    marginTop: spacing['2xl'],
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
+    paddingTop: spacing.xl,
   },
 });

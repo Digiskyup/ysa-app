@@ -24,6 +24,13 @@ export const UserService = {
   },
 
   /**
+   * Change password
+   */
+  async changePassword(data: any): Promise<void> {
+    await apiClient.put('/users/me/password', data);
+  },
+
+  /**
    * Upload avatar
    */
   async uploadAvatar(imageUri: string): Promise<string> {
@@ -122,6 +129,22 @@ export const UserService = {
     const response = await apiClient.post<ApiResponse<User>>('/users/staff', data);
     if (!response.data.data) throw new Error('Failed to create staff');
     return response.data.data;
+  },
+
+  /**
+   * Update staff member (super-admin only)
+   */
+  async updateStaff(id: string, data: Partial<User>): Promise<User> {
+    const response = await apiClient.put<ApiResponse<User>>(`/users/staff/${id}`, data);
+    if (!response.data.data) throw new Error('Failed to update staff');
+    return response.data.data;
+  },
+
+  /**
+   * Delete staff member (super-admin only)
+   */
+  async deleteStaff(id: string): Promise<void> {
+    await apiClient.delete(`/users/staff/${id}`);
   },
 };
 

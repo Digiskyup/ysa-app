@@ -29,6 +29,7 @@ import { loginSuccess, setLoading, setError } from '../../redux/slices/authSlice
 import { UserRole, User } from '../../types';
 import { AuthService } from '../../services/AuthService';
 import { spacing, borderRadius } from '../../theme';
+import { LanguageSelector } from '../../components/LanguageSelector';
 
 export const LoginScreen = ({ navigation }: any) => {
   const theme = useTheme();
@@ -42,13 +43,13 @@ export const LoginScreen = ({ navigation }: any) => {
 
   const handleForgotPassword = async () => {
     if (!email.trim()) {
-      Alert.alert(i18n.t('email_required', { defaultValue: 'Email Required' }), i18n.t('err_email_reset', { defaultValue: 'Please enter your email address to reset your password.' }));
+      Alert.alert(i18n.t('email_required'), i18n.t('err_email_missing_reset'));
       return;
     }
     dispatch(setLoading(true));
     try {
       await AuthService.forgotPassword(email.trim());
-      Alert.alert(i18n.t('success', { defaultValue: 'Success' }), i18n.t('msg_password_reset_sent', { defaultValue: 'Password reset instructions have been sent to your email.' }));
+      Alert.alert(i18n.t('success'), i18n.t('msg_reset_instructions_sent'));
     } catch (err: any) {
       const errorMessage = err.response?.data?.error?.message || err.message || 'Failed to send reset email.';
       Alert.alert(i18n.t('error', { defaultValue: 'Error' }), errorMessage);
@@ -66,7 +67,7 @@ export const LoginScreen = ({ navigation }: any) => {
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      dispatch(setError('Please enter email and password'));
+      dispatch(setError(i18n.t('err_enter_email_password')));
       return;
     }
 
@@ -77,9 +78,9 @@ export const LoginScreen = ({ navigation }: any) => {
       dispatch(loginSuccess(response));
       // Navigation is handled automatically by AppNavigator
     } catch (err: any) {
-      const errorMessage = err.response?.data?.error?.message || err.message || 'Login failed. Please try again.';
+      const errorMessage = err.response?.data?.error?.message || err.message || i18n.t('err_login_failed');
       dispatch(setError(errorMessage));
-      Alert.alert(i18n.t('login_failed', { defaultValue: 'Login Failed' }), errorMessage);
+      Alert.alert(i18n.t('err_login_failed'), errorMessage);
     } finally {
       dispatch(setLoading(false));
     }
@@ -103,11 +104,11 @@ export const LoginScreen = ({ navigation }: any) => {
         // operation (e.g. sign in) is in progress already
       } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
         // play services not available or outdated
-        dispatch(setError('Play services not available'));
+        dispatch(setError(i18n.t('err_play_services_unavailable')));
         dispatch(setLoading(false));
       } else {
         // some other error happened
-        dispatch(setError(error.message || 'Google Sign-In failed'));
+        dispatch(setError(error.message || i18n.t('err_google_signin_failed')));
         dispatch(setLoading(false));
       }
     }
@@ -176,7 +177,7 @@ export const LoginScreen = ({ navigation }: any) => {
               category="s1"
               style={{ color: theme['text-hint-color'], marginTop: spacing.xs }}
             >
-              {i18n.t('signin_to_continue', { defaultValue: 'Sign in to continue' })}
+              {i18n.t('signin_to_continue')}
             </Text>
           </View>
 
@@ -218,7 +219,7 @@ export const LoginScreen = ({ navigation }: any) => {
                 category="s2"
                 style={{ color: theme['color-primary-500'] }}
               >
-                {i18n.t('forgot_password', { defaultValue: 'Forgot Password?' })}
+                {i18n.t('forgot_password')}
               </Text>
             </TouchableOpacity>
 
@@ -241,21 +242,23 @@ export const LoginScreen = ({ navigation }: any) => {
             >
               {isLoading ? '' : i18n.t('login')}
             </Button>
-
-
-
             {/* Sign Up Link */}
             <View style={styles.signupContainer}>
-              <Text category="s1" style={{ color: theme['text-hint-color'] }}>
-                {`${i18n.t('no_account', { defaultValue: "Don't have an account?" })} `}
-              </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
-                <Text category="s1"
-                  style={{ color: theme['color-primary-500'], fontWeight: '600' }}
-                >
-                  {i18n.t('signup')}
+              <View style={{ flexDirection: 'row' }}>
+                <Text category="s1" style={{ color: theme['text-hint-color'] }}>
+                  {`${i18n.t('dont_have_account')} `}
                 </Text>
-              </TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+                  <Text category="s1" style={{ color: theme['color-primary-500'], fontWeight: '600' }}>
+                    {i18n.t('signup')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Language Selector */}
+            <View style={styles.languageContainer}>
+              <LanguageSelector style={{ width: 160, alignSelf: 'center' }} />
             </View>
           </View>
         </ScrollView>
@@ -336,8 +339,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing['2xl'],
   },
   signupContainer: {
-    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  languageContainer: {
+    marginTop: spacing['2xl'],
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
+    paddingTop: spacing.xl,
   },
 });
