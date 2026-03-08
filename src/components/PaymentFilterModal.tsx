@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
 import { Layout, Text, Button, Icon, Modal, Select, SelectItem, useTheme, IndexPath } from '@ui-kitten/components';
 import { FilterChip } from './FilterChip';
+import { i18n } from '../i18n';
 
 interface PaymentFilterModalProps {
   visible: boolean;
@@ -30,8 +31,8 @@ export const PaymentFilterModal = ({ visible, onClose }: PaymentFilterModalProps
         <Layout style={styles.modalContainer}>
             <View style={styles.modalHeader}>
                 <Button appearance='ghost' accessoryLeft={<Icon name='arrow-back'/>} onPress={onClose}/>
-                <Text category='h6'>Filters</Text>
-                <Button appearance='ghost' onPress={() => {}}>Reset</Button>
+                <Text category='h6'>{i18n.t('filter', { defaultValue: 'Filters' })}</Text>
+                <Button appearance='ghost' onPress={() => {}}>{i18n.t('filter_reset', { defaultValue: 'Reset' })}</Button>
             </View>
 
             <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
@@ -116,9 +117,9 @@ export const PaymentFilterModal = ({ visible, onClose }: PaymentFilterModalProps
                 {/* Temperature Section */}
                 <Text category='s1' style={styles.sectionTitle}>Temperature:</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}>
-                    <Text appearance='hint'>From </Text>
+                    <Text appearance='hint'>{i18n.t('filter_from', { defaultValue: 'From ' })}</Text>
                     <View style={styles.tempChip}><Text>16°C</Text></View>
-                    <Text appearance='hint' style={{ marginHorizontal: 8 }}> To </Text>
+                    <Text appearance='hint' style={{ marginHorizontal: 8 }}>{i18n.t('filter_to', { defaultValue: ' To ' })}</Text>
                     <View style={styles.tempChip}><Text>22°C</Text></View>
                 </View>
                 {/* Visual Fake Slider */}
@@ -133,7 +134,7 @@ export const PaymentFilterModal = ({ visible, onClose }: PaymentFilterModalProps
 
             <View style={styles.modalFooter}>
                  <Button style={[styles.applyButton, { backgroundColor: theme['color-primary-500'], borderColor: theme['color-primary-500'] }]} onPress={onClose}>
-                     {evaProps => <Text {...evaProps} style={{ color: '#1A1A1A' }}>Apply filters</Text>}
+                     {evaProps => <Text {...evaProps} style={{ color: '#1A1A1A' }}>{i18n.t('filter_apply', { defaultValue: 'Apply filters' })}</Text>}
                  </Button>
             </View>
         </Layout>

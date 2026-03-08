@@ -71,15 +71,6 @@ export const CustomBottomBar = ({
                 style={styles.icon}
                 fill={isFocused ? '#FFFFFF' : theme['text-hint-color']}
               />
-              {isFocused && (
-                <Text
-                  category="c2"
-                  style={[styles.label, { color: '#FFFFFF' }]}
-                  numberOfLines={1}
-                >
-                  {tabConfig?.label || route.name}
-                </Text>
-              )}
             </TouchableOpacity>
           );
         })}
@@ -102,8 +93,16 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
     marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md, 
     borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 15,
   },
   tab: {
     flexDirection: 'row',

@@ -10,6 +10,8 @@ import {
   Spinner,
 } from '@ui-kitten/components';
 import { NotificationBell } from '../../components/NotificationBell';
+import { selectLocale } from '../../redux/slices/appSlice';
+import { useAppSelector } from '../../redux/hooks';
 import { i18n } from '../../i18n';
 import {
   StyleSheet,
@@ -39,9 +41,11 @@ const STATUS_FILTERS = [
   { label: ApprovalStatus.REJECTED, getLabel: () => i18n.t('approvals_rejected') },
 ];
 
-export const ApprovalsScreen = () => {
+export const ApprovalsScreen = ({ isTabMode = false }: any) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const user = useAppSelector((state: any) => state.auth.user);
+  const locale = useAppSelector(selectLocale); // Listen for language changes
 
   const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
@@ -120,9 +124,9 @@ export const ApprovalsScreen = () => {
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const days = Math.floor(hours / 24);
 
-    if (hours < 1) return 'Just now';
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
+    if (hours < 1) return i18n.t('just_now', { defaultValue: 'Just now' });
+    if (hours < 24) return `${hours}${i18n.t('ago_h', { defaultValue: 'h ago' })}`;
+    if (days < 7) return `${days}${i18n.t('ago_d', { defaultValue: 'd ago' })}`;
     return date.toLocaleDateString();
   };
 
@@ -136,28 +140,30 @@ export const ApprovalsScreen = () => {
   );
 
   return (
-    <Layout style={[styles.container, { paddingTop: insets.top }]}>
+    <Layout style={[styles.container, !isTabMode && { paddingTop: insets.top }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <Text category="h5" style={{ fontWeight: '700' }}>
-            {i18n.t('approvals_title')}
-          </Text>
-          <View style={styles.badgeContainer}>
-            <View
-              style={[
-                styles.badge,
-                { backgroundColor: theme['color-primary-500'] },
-              ]}
-            >
-              <Text category="c2" style={{ color: '#FFFFFF', fontWeight: '600' }}>
-                {approvals.filter((a) => a.status === ApprovalStatus.PENDING).length}
-              </Text>
+      {!isTabMode && (
+        <View style={styles.header}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <Text category="h5" style={{ fontWeight: '700' }}>
+              {i18n.t('approvals_title')}
+            </Text>
+            <View style={styles.badgeContainer}>
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: theme['color-primary-500'] },
+                ]}
+              >
+                <Text category="c2" style={{ color: '#FFFFFF', fontWeight: '600' }}>
+                  {approvals.filter((a) => a.status === ApprovalStatus.PENDING).length}
+                </Text>
+              </View>
             </View>
           </View>
+          <NotificationBell />
         </View>
-        <NotificationBell />
-      </View>
+      )}
 
       {/* Filter Chips */}
       <View style={styles.filterContainer}>
@@ -204,7 +210,7 @@ export const ApprovalsScreen = () => {
       <BottomSheetModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
-        title="Approval Details"
+        title={i18n.t('approval_details', { defaultValue: 'Approval Details' })}
       >
         {selectedApproval && (
           <View style={styles.modalContent}>

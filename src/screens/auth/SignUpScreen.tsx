@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import {
   Layout,
   Text,
@@ -29,13 +28,12 @@ import { loginSuccess, setLoading, setError, clearError } from '../../redux/slic
 import { UserRole, User } from '../../types';
 import { AuthService } from '../../services/AuthService';
 import { spacing, borderRadius } from '../../theme';
+import { i18n } from '../../i18n';
 
 // Only student self-signup by default
 const SIGNUP_ROLES = [
   { label: 'Student', value: UserRole.STUDENT },
 ];
-
-WebBrowser.maybeCompleteAuthSession();
 
 export const SignUpScreen = ({ navigation }: any) => {
   const theme = useTheme();
@@ -53,6 +51,13 @@ export const SignUpScreen = ({ navigation }: any) => {
   const [acceptTerms, setAcceptTerms] = useState(false);
 
   const selectedRole = SIGNUP_ROLES[selectedRoleIndex.row];
+
+  React.useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: '252145337666-jvhc0dgsp5n475a3l1oj4a0ericm49i9.apps.googleusercontent.com',
+      offlineAccess: true,
+    });
+  }, []);
 
   const validateForm = (): boolean => {
     dispatch(clearError());
@@ -113,29 +118,37 @@ export const SignUpScreen = ({ navigation }: any) => {
       dispatch(loginSuccess(response));
       // Navigation is handled automatically by AppNavigator
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Signup failed. Please try again.';
+      const errorMessage = err.response?.data?.message || err.message || i18n.t('signup_failed', { defaultValue: 'Signup failed. Please try again.' });
       dispatch(setError(errorMessage));
     } finally {
       dispatch(setLoading(false));
     }
   };
 
-  // Google Sign In Configuration
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: 'YOUR_WEB_CLIENT_ID',
-    iosClientId: 'YOUR_IOS_CLIENT_ID',
-    androidClientId: 'YOUR_ANDROID_CLIENT_ID',
-  });
-
-  React.useEffect(() => {
-    if (response?.type === 'success') {
-      const { id_token } = response.params;
-      handleGoogleAuth(id_token);
-    } else if (response?.type === 'error') {
-      dispatch(setError('Google Sign-Up failed'));
-      dispatch(setLoading(false));
+  const handleGoogleSignUp = async () => {
+    dispatch(setLoading(true));
+    try {
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      if (userInfo.data?.idToken) {
+         handleGoogleAuth(userInfo.data.idToken);
+      } else {
+         throw new Error('No idToken found');
+      }
+    } catch (error: any) {
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        dispatch(setLoading(false));
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        // operation (e.g. sign in) is in progress already
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        dispatch(setError('Play services not available'));
+        dispatch(setLoading(false));
+      } else {
+        dispatch(setError(error.message || i18n.t('google_signup_failed', { defaultValue: 'Google Sign-Up failed' })));
+        dispatch(setLoading(false));
+      }
     }
-  }, [response]);
+  };
 
   const handleGoogleAuth = async (idToken: string) => {
     dispatch(setLoading(true));
@@ -143,14 +156,10 @@ export const SignUpScreen = ({ navigation }: any) => {
        const res = await AuthService.googleAuth(idToken);
        dispatch(loginSuccess(res));
     } catch (err: any) {
-       dispatch(setError(err.message || 'Google Sign-Up failed'));
+       dispatch(setError(err.message || i18n.t('google_signup_failed', { defaultValue: 'Google Sign-Up failed' })));
     } finally {
        dispatch(setLoading(false));
     }
-  };
-
-  const handleGoogleSignUp = () => {
-    promptAsync();
   };
 
   const GoogleIcon = () => (
@@ -212,13 +221,13 @@ export const SignUpScreen = ({ navigation }: any) => {
               category="h4"
               style={[styles.title, { color: theme['text-basic-color'] }]}
             >
-              Create Account
+              {i18n.t('create_account', { defaultValue: 'Create Account' })}
             </Text>
             <Text
               category="s1"
               style={{ color: theme['text-hint-color'], marginTop: spacing.xs }}
             >
-              Sign up to get started
+              {i18n.t('signup_to_start', { defaultValue: 'Sign up to get started' })}
             </Text>
           </View>
 
@@ -227,8 +236,8 @@ export const SignUpScreen = ({ navigation }: any) => {
             {/* Name Input */}
             <View style={styles.inputWrapper}>
               <YInput
-                label="Full Name"
-                placeholder="Enter your full name"
+                label={i18n.t('full_name', { defaultValue: 'Full Name' })}
+                placeholder={i18n.t('placeholder_fullname', { defaultValue: 'Enter your full name' })}
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
@@ -241,8 +250,8 @@ export const SignUpScreen = ({ navigation }: any) => {
             {/* Email Input */}
             <View style={styles.inputWrapper}>
               <YInput
-                label="Email"
-                placeholder="Enter your email"
+                label={i18n.t('email', { defaultValue: 'Email' })}
+                placeholder={i18n.t('placeholder_email', { defaultValue: 'Enter your email' })}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -256,8 +265,8 @@ export const SignUpScreen = ({ navigation }: any) => {
             {/* Phone Input */}
             <View style={styles.inputWrapper}>
               <YInput
-                label="Phone Number"
-                placeholder="Enter your phone number"
+                label={i18n.t('phone', { defaultValue: 'Phone Number' })}
+                placeholder={i18n.t('placeholder_phone', { defaultValue: 'Enter your phone number' })}
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
@@ -270,7 +279,7 @@ export const SignUpScreen = ({ navigation }: any) => {
             {/* Role Selector */}
             <View style={styles.inputWrapper}>
               <Text category="label" style={styles.label}>
-                Register As
+                {i18n.t('register_as', { defaultValue: 'Register As' })}
               </Text>
               <Select
                 selectedIndex={selectedRoleIndex}
@@ -291,8 +300,8 @@ export const SignUpScreen = ({ navigation }: any) => {
             {/* Password Input */}
             <View style={styles.inputWrapper}>
               <YInput
-                label="Password"
-                placeholder="Create a password"
+                label={i18n.t('password', { defaultValue: 'Password' })}
+                placeholder={i18n.t('placeholder_create_password', { defaultValue: 'Create a password' })}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -306,8 +315,8 @@ export const SignUpScreen = ({ navigation }: any) => {
             {/* Confirm Password Input */}
             <View style={styles.inputWrapper}>
               <YInput
-                label="Confirm Password"
-                placeholder="Confirm your password"
+                label={i18n.t('confirm_password', { defaultValue: 'Confirm Password' })}
+                placeholder={i18n.t('placeholder_confirm_password', { defaultValue: 'Confirm your password' })}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry={!showPassword}
@@ -326,19 +335,19 @@ export const SignUpScreen = ({ navigation }: any) => {
               >
                 {() => (
                   <Text category="c1" style={styles.termsText}>
-                    I agree to the{' '}
+                    {`${i18n.t('agree_to', { defaultValue: 'I agree to the' })} `}
                     <Text
                       style={{ color: theme['color-primary-500'] }}
                       category="c1"
                     >
-                      Terms of Service
+                      {i18n.t('terms_of_service', { defaultValue: 'Terms of Service' })}
                     </Text>
-                    {' '}and{' '}
+                    {` ${i18n.t('and', { defaultValue: 'and' })} `}
                     <Text
                       style={{ color: theme['color-primary-500'] }}
                       category="c1"
                     >
-                      Privacy Policy
+                      {i18n.t('privacy_policy', { defaultValue: 'Privacy Policy' })}
                     </Text>
                   </Text>
                 )}
@@ -362,45 +371,22 @@ export const SignUpScreen = ({ navigation }: any) => {
               size="large"
               accessoryLeft={isLoading ? () => <Spinner size="small" status="control" /> : undefined}
             >
-              {isLoading ? '' : 'Create Account'}
+              {isLoading ? '' : i18n.t('create_account', { defaultValue: 'Create Account' })}
             </Button>
 
-            {/* Divider */}
-            <View style={styles.dividerContainer}>
-              <View style={[styles.divider, { backgroundColor: theme['border-basic-color-2'] }]} />
-              <Text
-                category="c1"
-                style={{ marginHorizontal: spacing.md, color: theme['text-hint-color'] }}
-              >
-                Or continue with
-              </Text>
-              <View style={[styles.divider, { backgroundColor: theme['border-basic-color-2'] }]} />
-            </View>
 
-            {/* Google Sign Up */}
-            <Button
-              style={styles.googleButton}
-              appearance="outline"
-              status="basic"
-              size="large"
-              accessoryLeft={GoogleIcon}
-              onPress={handleGoogleSignUp}
-              disabled={isLoading}
-            >
-              Continue with Google
-            </Button>
 
             {/* Sign In Link */}
             <View style={styles.signinContainer}>
               <Text category="s1" style={{ color: theme['text-hint-color'] }}>
-                Already have an account?{' '}
+                {`${i18n.t('already_have_account', { defaultValue: 'Already have an account?' })} `}
               </Text>
               <TouchableOpacity onPress={() => navigation.goBack()}>
                 <Text
                   category="s1"
                   style={{ color: theme['color-primary-500'], fontWeight: '600' }}
                 >
-                  Sign In
+                  {i18n.t('signin', { defaultValue: 'Sign In' })}
                 </Text>
               </TouchableOpacity>
             </View>

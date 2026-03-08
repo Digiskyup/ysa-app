@@ -2,7 +2,7 @@ import { LogLevel, OneSignal } from 'react-native-onesignal';
 import { Platform } from 'react-native';
 import { store } from '../redux/store';
 import { setFCMToken, setPermissionGranted, addNotification } from '../redux/slices/notificationSlice';
-import { AppNotification } from '../types';
+import { AppNotification, ApiResponse } from '../types';
 import apiClient from './api/client';
 
 // Replace with your OneSignal App ID
@@ -89,7 +89,7 @@ class NotificationService {
   ): void {
     
     // Foreground Notification Listener
-    OneSignal.Notifications.addEventListener('foregroundWillDisplay', (event) => {
+    OneSignal.Notifications.addEventListener('foregroundWillDisplay', (event: any) => {
       console.log('OneSignal notification received in foreground:', event);
       
       const notification = event.getNotification();
@@ -113,7 +113,7 @@ class NotificationService {
     });
 
     // Notification Click Listener
-    OneSignal.Notifications.addEventListener('click', (event) => {
+    OneSignal.Notifications.addEventListener('click', (event: any) => {
       console.log('OneSignal notification clicked:', event);
       onNotificationPressed?.(event);
       
@@ -153,10 +153,10 @@ class NotificationService {
     limit?: number;
   }): Promise<{ data: AppNotification[]; total: number }> {
      try {
-       const response = await apiClient.get<{ results: AppNotification[], totalResults: number }>('/notifications', { params });
+       const response = await apiClient.get<ApiResponse<AppNotification[]>>('/notifications', { params });
        return {
-         data: response.data.results,
-         total: response.data.totalResults,
+         data: response.data.data || [],
+         total: response.data.meta?.total || 0,
        };
      } catch (error) {
        console.error('Error fetching notifications:', error);

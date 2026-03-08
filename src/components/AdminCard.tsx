@@ -53,7 +53,7 @@ export const AdminCard = ({ admin, onPress }: AdminCardProps) => {
               style={styles.permissionIcon}
             />
             <Text category="c2" appearance="hint">
-              {admin.permissions.length} permissions
+              {admin.permissions?.length || 0} permissions
             </Text>
           </View>
         </View>

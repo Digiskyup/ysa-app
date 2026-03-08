@@ -16,10 +16,10 @@ export const PaymentService = {
     startDate?: string;
     endDate?: string;
   }): Promise<{ data: Payment[]; total: number }> {
-    const response = await apiClient.get<{ results: Payment[], totalResults: number }>('/payments', { params });
+    const response = await apiClient.get<ApiResponse<Payment[]>>('/payments', { params });
     return {
-      data: response.data.results,
-      total: response.data.totalResults,
+      data: response.data.data || [],
+      total: response.data.meta?.total || 0,
     };
   },
 
@@ -33,8 +33,11 @@ export const PaymentService = {
     paymentMode: PaymentMode;
     notes?: string;
   }): Promise<Payment> {
-    const response = await apiClient.post<Payment>('/payments', data);
-    return response.data;
+    const response = await apiClient.post<ApiResponse<Payment>>('/payments', data);
+    if (!response.data.success || !response.data.data) {
+        throw new Error(response.data.error?.message || 'Failed to create payment');
+    }
+    return response.data.data;
   },
 
   /**
@@ -48,8 +51,11 @@ export const PaymentService = {
     // If approved=true, call approval endpoint. If false, rejection logic?
     // Postman: PUT /v1/payments/:id/approval { "approved": true }
     // If rejected, maybe sending approved=false? and reason.
-    const response = await apiClient.put<Payment>(`/payments/${id}/approval`, { approved, rejectionReason });
-    return response.data;
+    const response = await apiClient.put<ApiResponse<Payment>>(`/payments/${id}/approval`, { approved, rejectionReason });
+    if (!response.data.success || !response.data.data) {
+        throw new Error(response.data.error?.message || 'Failed to process payment approval');
+    }
+    return response.data.data;
   },
 
   /**
@@ -58,9 +64,9 @@ export const PaymentService = {
   async downloadReceipt(paymentId: string): Promise<string> {
     // Check if we can get the receipt URL directly
     // Ideally, getPayment(id) returns { receiptUrl: ... }
-    const response = await apiClient.get<Payment>(`/payments/${paymentId}`);
-    if (response.data.receiptUrl) {
-      return response.data.receiptUrl;
+    const response = await apiClient.get<ApiResponse<Payment>>(`/payments/${paymentId}`);
+    if (response.data.data?.receiptUrl) {
+      return response.data.data.receiptUrl;
     }
     // Fallback: If no URL, return empty or throw? 
     // The previous mock returned a file URI. 

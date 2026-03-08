@@ -15,6 +15,7 @@ export default {
   error: 'त्रुटि',
   success: 'सफलता',
   retry: 'पुनः प्रयास करें',
+  welcome_back: 'वापसी पर स्वागत है',
   
   // Auth
   login: 'साइन इन करें',
@@ -43,8 +44,15 @@ export default {
   nav_admins: 'स्टाफ',
   nav_payments: 'भुगतान',
   nav_profile: 'प्रोफाइल',
+  add_payment: 'जोड़ें',
+  dashboard: 'डैशबोर्ड',
+  latest_approvals: 'नवीनतम मंजूरी',
+  quick_actions: 'त्वरित क्रियाएं',
+  action_add_student: 'छात्र जोड़ें',
+  action_add_payment: 'भुगतान जोड़ें',
+  recent_updates: 'हाल के अपडेट',
+  no_recent_updates: 'कोई हाल के अपडेट नहीं',
   
-  // Approvals
   approvals_title: 'मंजूरी',
   approvals_pending: 'लंबित',
   approvals_approved: 'स्वीकृत',
@@ -85,4 +93,83 @@ export default {
   pull_to_refresh: 'रिफ्रेश करने के लिए नीचे खींचें',
   no_data: 'कोई डेटा उपलब्ध नहीं',
   no_results: 'कोई परिणाम नहीं मिला',
+  add_staff: 'स्टाफ सदस्य जोड़ें',
+  
+  // Filters
+  filter_reset: 'रीसेट',
+  filter_apply: 'फ़िल्टर लागू करें',
+  filter_from: 'से ',
+  filter_to: ' तक ',
+  
+  // Banner
+  banner_title: 'Your Success Academy',
+  banner_subtitle: 'अपनी शिक्षा यात्रा को कुशलतापूर्वक प्रबंधित करें।',
+  dashboard_metrics: 'भुगतान मेट्रिक्स चार्ट',
+  dashboard_approvals_placeholder: 'अनुमोदन सूची प्लेसहोल्डर',
+  
+  // Payment Details
+  no_payments: 'कोई भुगतान नहीं',
+  payment_details: 'भुगतान विवरण',
+  action_reject: 'अस्वीकार करें',
+  action_approve: 'स्वीकार करें',
+  err_fetch_payments: 'भुगतान लाने में विफल',
+  msg_reminders_sent: 'भुगतान अनुस्मारक भेजे गए!',
+  err_send_reminders: 'अनुस्मारक भेजने में विफल',
+  err_receipt_not_approved: 'रसीद केवल स्वीकृत भुगतानों के लिए उपलब्ध है।',
+  msg_receipt_saved: 'रसीद यहाँ सहेजी गई: ',
+  err_download_receipt: 'रसीद डाउनलोड नहीं की जा सकी।',
+  
+  // Add Payment
+  label_payment_mode: 'भुगतान मोड',
+  label_date: 'दिनांक',
+  placeholder_student_id: 'छात्र पहचानकर्ता दर्ज करें',
+  placeholder_amount: 'राशि दर्ज करें',
+  placeholder_notes: 'वैकल्पिक नोट्स',
+  err_fill_required: 'कृपया सभी आवश्यक फ़ील्ड भरें',
+  err_create_payment: 'भुगतान बनाने में विफल',
+  
+  // Staff
+  no_staff: 'कोई स्टाफ नहीं मिला',
+  edit_permissions: 'अनुमतियाँ संपादित करें',
+  placeholder_fullname: 'पूरा नाम दर्ज करें',
+  placeholder_email: 'ईमेल पता दर्ज करें',
+  placeholder_phone: 'फोन नंबर दर्ज करें',
+  msg_permissions_updated: 'अनुमतियाँ अपडेट की गईं',
+  err_update_permissions: 'अनुमतियाँ अपडेट करने में विफल',
+  msg_staff_created: 'स्टाफ सदस्य सफलतापूर्वक बनाया गया',
+  err_create_staff: 'स्टाफ बनाने में विफल',
+  
+  // Student
+  student_details: 'छात्र विवरण',
+  err_delete_student: 'छात्र हटाने में विफल',
+  back: 'वापस',
+  title_edit_student: 'छात्र संपादित करें',
+  err_no_student_id: 'कोई छात्र आईडी प्रदान नहीं की गई',
+  err_load_student: 'छात्र विवरण लोड करने में विफल',
+  err_name_email_required: 'नाम और ईमेल आवश्यक हैं',
+  msg_student_updated: 'छात्र सफलतापूर्वक अपडेट किया गया',
+  err_update_student: 'छात्र अपडेट करने में विफल',
+  title_add_student: 'छात्र जोड़ें',
+  err_name_email_pass_required: 'नाम, ईमेल और पासवर्ड आवश्यक हैं',
+  msg_student_created: 'छात्र सफलतापूर्वक बनाया गया',
+  err_create_student_failed: 'छात्र बनाने में विफल',
+  
+  // Profile
+  placeholder_name: 'अपना नाम दर्ज करें',
+  msg_profile_updated: 'प्रोफ़ाइल सफलतापूर्वक अपडेट की गई!',
+  err_update_profile: 'प्रोफ़ाइल अपडेट करने में विफल',
+  
+  // Auth Extra
+  err_email_missing_reset: 'अपना पासवर्ड रीसेट करने के लिए कृपया अपना ईमेल पता दर्ज करें।',
+  msg_reset_instructions_sent: 'पासवर्ड रीसेट निर्देश आपके ईमेल पर भेज दिए गए हैं।',
+  err_login_failed: 'लॉगिन विफल',
+  err_google_signin_failed: 'Google साइन-इन विफल',
+  placeholder_create_password: 'एक पासवर्ड बनाएं',
+  placeholder_confirm_password: 'पासवर्ड की पुष्टि करें',
+  title_reset_password: 'पासवर्ड रीसेट करें',
+  placeholder_reset_token: 'यहाँ टोकन पेस्ट करें',
+  placeholder_new_password: 'नया पासवर्ड दर्ज करें',
+  err_token_pass_required: 'कृपया रीसेट टोकन और नया पासवर्ड दर्ज करें',
+  msg_password_reset_success: 'पासवर्ड सफलतापूर्वक रीसेट कर दिया गया है। कृपया लॉगिन करें।',
+  err_reset_password: 'पासवर्ड रीसेट करने में विफल',
 };

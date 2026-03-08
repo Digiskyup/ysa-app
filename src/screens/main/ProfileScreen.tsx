@@ -21,7 +21,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSelector, useAppDispatch } from '../../redux/hooks';
-import { logout } from '../../redux/slices/authSlice';
+import { logout, updateUser } from '../../redux/slices/authSlice';
 import { toggleTheme, setLocale, selectTheme, selectLocale, Locale } from '../../redux/slices/appSlice';
 import { BottomSheetModal } from '../../components/BottomSheetModal';
 import UserService from '../../services/UserService';
@@ -64,10 +64,10 @@ export const ProfileScreen = ({ navigation }: any) => {
   };
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(i18n.t('logout', { defaultValue: 'Logout' }), i18n.t('msg_confirm_logout', { defaultValue: 'Are you sure you want to logout?' }), [
+      { text: i18n.t('action_cancel', { defaultValue: 'Cancel' }), style: 'cancel' },
       {
-        text: 'Logout',
+        text: i18n.t('logout', { defaultValue: 'Logout' }),
         style: 'destructive',
         onPress: () => {
           dispatch(logout());
@@ -82,20 +82,16 @@ export const ProfileScreen = ({ navigation }: any) => {
         name: editName,
         phone: editPhone,
       });
-      console.log('Profile updated', updatedUser);
-       // Dispatch update to Redux
-       // dispatch(setCredentials({ user: updatedUser, token: ... })) - we need token.
-       // For now, let's assume we need to re-fetch/update or just trust the response.
-       // Actually, we should update the store.
-       // Since we don't have the token handy here without selector, we might need to handle it.
-       // But wait, updateProfile returns the updated user.
-       // We can dispatch an action to update ONLY the user in auth slice.
-       // Let's assume there's an action for that or we just alert for now.
-      Alert.alert('Success', 'Profile updated successfully!');
+      // Update the user in Redux store
+      dispatch(updateUser({
+        name: updatedUser.name,
+        phone: updatedUser.phone,
+      }));
+      Alert.alert(i18n.t('success', { defaultValue: 'Success' }), i18n.t('msg_profile_updated', { defaultValue: 'Profile updated successfully!' }));
       setEditModalVisible(false);
     } catch (error) {
       console.error('Failed to update profile', error);
-      Alert.alert('Error', 'Failed to update profile');
+      Alert.alert(i18n.t('error', { defaultValue: 'Error' }), i18n.t('err_update_profile', { defaultValue: 'Failed to update profile' }));
     }
   };
 
@@ -170,10 +166,10 @@ export const ProfileScreen = ({ navigation }: any) => {
           </TouchableOpacity>
 
           <Text category="h5" style={styles.name}>
-            {user?.name || 'Guest User'}
+            {user?.name || i18n.t('guest_user', { defaultValue: 'Guest User' })}
           </Text>
           <Text category="s1" appearance="hint">
-            {user?.email || 'No email'}
+            {user?.email || i18n.t('no_email', { defaultValue: 'No email' })}
           </Text>
 
           {/* Role Badge */}
@@ -184,14 +180,15 @@ export const ProfileScreen = ({ navigation }: any) => {
             ]}
           >
             <Text
-              category="c2"
+              category="s1"
+              appearance="hint"
               style={{
                 color: getRoleBadgeColor(),
                 fontWeight: '600',
                 textTransform: 'capitalize',
               }}
             >
-              {user?.role ? i18n.t(`role_${user.role}`) : i18n.t('role_student')}
+              {user?.role ? i18n.t(`role_${user.role.replace('-', '_')}`) : i18n.t('role_student')}
             </Text>
           </View>
         </View>
@@ -327,20 +324,20 @@ export const ProfileScreen = ({ navigation }: any) => {
       <BottomSheetModal
         visible={editModalVisible}
         onClose={() => setEditModalVisible(false)}
-        title="Edit Profile"
+        title={i18n.t('edit_profile', { defaultValue: 'Edit Profile' })}
       >
         <View style={styles.modalContent}>
           <YInput
-            label="Full Name"
-            placeholder="Enter your name"
+            label={i18n.t('full_name', { defaultValue: 'Full Name' })}
+            placeholder={i18n.t('placeholder_fullname', { defaultValue: 'Enter your name' })}
             value={editName}
             onChangeText={setEditName}
             style={{ marginBottom: spacing.lg }}
           />
 
           <YInput
-            label="Phone Number"
-            placeholder="Enter phone number"
+            label={i18n.t('phone', { defaultValue: 'Phone Number' })}
+            placeholder={i18n.t('placeholder_phone', { defaultValue: 'Enter phone number' })}
             value={editPhone}
             onChangeText={setEditPhone}
             keyboardType="phone-pad"
@@ -348,7 +345,7 @@ export const ProfileScreen = ({ navigation }: any) => {
           />
 
           <YInput
-            label="Email"
+            label={i18n.t('email', { defaultValue: 'Email' })}
             value={user?.email || ''}
             disabled
             style={{ marginBottom: spacing.lg }}
@@ -358,7 +355,7 @@ export const ProfileScreen = ({ navigation }: any) => {
             style={styles.saveButton}
             onPress={handleSaveProfile}
           >
-            Save Changes
+            {i18n.t('action_save_changes', { defaultValue: 'Save Changes' })}
           </Button>
         </View>
       </BottomSheetModal>

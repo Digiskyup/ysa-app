@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { i18n } from '../../i18n';
 import {
   Layout,
@@ -21,6 +20,7 @@ import {
   Platform,
   ScrollView,
   Image,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { YInput } from '../../components/YInput';
@@ -30,17 +30,6 @@ import { UserRole, User } from '../../types';
 import { AuthService } from '../../services/AuthService';
 import { spacing, borderRadius } from '../../theme';
 
-const ROLES = [
-  { label: 'Student', value: UserRole.STUDENT },
-  { label: 'Receptionist', value: UserRole.RECEPTIONIST },
-  { label: 'Admin', value: UserRole.ADMIN },
-  { label: 'Super Admin', value: UserRole.SUPER_ADMIN },
-];
-
-
-
-WebBrowser.maybeCompleteAuthSession();
-
 export const LoginScreen = ({ navigation }: any) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -49,10 +38,31 @@ export const LoginScreen = ({ navigation }: any) => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRoleIndex, setSelectedRoleIndex] = useState<IndexPath>(new IndexPath(0));
   const [showPassword, setShowPassword] = useState(false);
 
-  const selectedRole = ROLES[selectedRoleIndex.row];
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      Alert.alert(i18n.t('email_required', { defaultValue: 'Email Required' }), i18n.t('err_email_reset', { defaultValue: 'Please enter your email address to reset your password.' }));
+      return;
+    }
+    dispatch(setLoading(true));
+    try {
+      await AuthService.forgotPassword(email.trim());
+      Alert.alert(i18n.t('success', { defaultValue: 'Success' }), i18n.t('msg_password_reset_sent', { defaultValue: 'Password reset instructions have been sent to your email.' }));
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.error?.message || err.message || 'Failed to send reset email.';
+      Alert.alert(i18n.t('error', { defaultValue: 'Error' }), errorMessage);
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+
+  React.useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: '252145337666-jvhc0dgsp5n475a3l1oj4a0ericm49i9.apps.googleusercontent.com',
+      offlineAccess: true,
+    });
+  }, []);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -63,33 +73,45 @@ export const LoginScreen = ({ navigation }: any) => {
     dispatch(setLoading(true));
 
     try {
-      const response = await AuthService.login(email.trim(), password.trim(), selectedRole.value);
+      const response = await AuthService.login(email.trim(), password.trim());
       dispatch(loginSuccess(response));
       // Navigation is handled automatically by AppNavigator
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Login failed. Please try again.';
+      const errorMessage = err.response?.data?.error?.message || err.message || 'Login failed. Please try again.';
       dispatch(setError(errorMessage));
+      Alert.alert(i18n.t('login_failed', { defaultValue: 'Login Failed' }), errorMessage);
     } finally {
       dispatch(setLoading(false));
     }
   };
 
-  // Google Sign In Configuration
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: 'YOUR_WEB_CLIENT_ID',
-    iosClientId: 'YOUR_IOS_CLIENT_ID',
-    androidClientId: 'YOUR_ANDROID_CLIENT_ID',
-  });
-
-  React.useEffect(() => {
-    if (response?.type === 'success') {
-      const { id_token } = response.params;
-      handleGoogleAuth(id_token);
-    } else if (response?.type === 'error') {
-      dispatch(setError('Google Sign-In failed'));
-      dispatch(setLoading(false));
+  const handleGoogleSignIn = async () => {
+    dispatch(setLoading(true));
+    try {
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      if (userInfo.data?.idToken) {
+         handleGoogleAuth(userInfo.data.idToken);
+      } else {
+         throw new Error('No idToken found');
+      }
+    } catch (error: any) {
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        // user cancelled the login flow
+        dispatch(setLoading(false));
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        // operation (e.g. sign in) is in progress already
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        // play services not available or outdated
+        dispatch(setError('Play services not available'));
+        dispatch(setLoading(false));
+      } else {
+        // some other error happened
+        dispatch(setError(error.message || 'Google Sign-In failed'));
+        dispatch(setLoading(false));
+      }
     }
-  }, [response]);
+  };
 
   const handleGoogleAuth = async (idToken: string) => {
     dispatch(setLoading(true));
@@ -97,15 +119,16 @@ export const LoginScreen = ({ navigation }: any) => {
        const res = await AuthService.googleAuth(idToken);
        dispatch(loginSuccess(res));
     } catch (err: any) {
-       dispatch(setError(err.message || 'Google Sign-In failed'));
+       // Extract error message from backend response
+       const errorMessage = err.response?.data?.error?.message || err.message || 'Google Sign-In failed';
+       dispatch(setError(errorMessage));
+       Alert.alert(i18n.t('google_signin_failed', { defaultValue: 'Google Sign-In Failed' }), errorMessage);
     } finally {
        dispatch(setLoading(false));
     }
   };
 
-  const handleGoogleSignIn = () => {
-    promptAsync();
-  };
+
 
   const GoogleIcon = (props: any) => (
     <Image
@@ -153,33 +176,12 @@ export const LoginScreen = ({ navigation }: any) => {
               category="s1"
               style={{ color: theme['text-hint-color'], marginTop: spacing.xs }}
             >
-              Sign in to continue
+              {i18n.t('signin_to_continue', { defaultValue: 'Sign in to continue' })}
             </Text>
           </View>
 
           {/* Form Section */}
           <View style={styles.formContainer}>
-            {/* Role Selector */}
-            <View style={styles.inputWrapper}>
-              <Text category="label" style={styles.label}>
-                Login As
-              </Text>
-              <Select
-                selectedIndex={selectedRoleIndex}
-                onSelect={(index) => setSelectedRoleIndex(index as IndexPath)}
-                value={selectedRole.label}
-                style={styles.select}
-                size="large"
-                accessoryLeft={(props: any) => (
-                  <Icon {...props} name="person-outline" fill={theme['text-hint-color']} />
-                )}
-              >
-                {ROLES.map((role) => (
-                  <SelectItem key={role.value} title={role.label} />
-                ))}
-              </Select>
-            </View>
-
             {/* Email Input */}
             <View style={styles.inputWrapper}>
               <YInput
@@ -211,12 +213,12 @@ export const LoginScreen = ({ navigation }: any) => {
             </View>
 
             {/* Forgot Password */}
-            <TouchableOpacity style={styles.forgotPassword}>
+            <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
               <Text
                 category="s2"
                 style={{ color: theme['color-primary-500'] }}
               >
-                Forgot Password?
+                {i18n.t('forgot_password', { defaultValue: 'Forgot Password?' })}
               </Text>
             </TouchableOpacity>
 
@@ -240,35 +242,12 @@ export const LoginScreen = ({ navigation }: any) => {
               {isLoading ? '' : i18n.t('login')}
             </Button>
 
-            {/* Divider */}
-            <View style={styles.dividerContainer}>
-              <View style={[styles.divider, { backgroundColor: theme['border-basic-color-2'] }]} />
-              <Text
-                category="c1"
-                style={{ marginHorizontal: spacing.md, color: theme['text-hint-color'] }}
-              >
-                Or continue with
-              </Text>
-              <View style={[styles.divider, { backgroundColor: theme['border-basic-color-2'] }]} />
-            </View>
 
-            {/* Google Sign In */}
-            <Button
-              style={styles.googleButton}
-              appearance="outline"
-              status="basic"
-              size="large"
-              accessoryLeft={GoogleIcon}
-              onPress={handleGoogleSignIn}
-              disabled={isLoading}
-            >
-              Continue with Google
-            </Button>
 
             {/* Sign Up Link */}
             <View style={styles.signupContainer}>
               <Text category="s1" style={{ color: theme['text-hint-color'] }}>
-                Don't have an account?{' '}
+                {`${i18n.t('no_account', { defaultValue: "Don't have an account?" })} `}
               </Text>
               <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
                 <Text category="s1"

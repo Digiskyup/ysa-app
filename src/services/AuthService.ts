@@ -14,8 +14,11 @@ export const AuthService = {
    * Login with email, password
    */
   async login(email: string, password: string, role?: UserRole): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>('/auth/login', { email, password });
-    return response.data;
+    const response = await apiClient.post<ApiResponse<AuthResponse>>('/auth/login', { email, password });
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error?.message || 'Login failed');
+    }
+    return response.data.data;
   },
 
   /**
@@ -28,8 +31,11 @@ export const AuthService = {
     phone?: string;
     role?: UserRole;
   }): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>('/auth/signup', data);
-    return response.data;
+    const response = await apiClient.post<ApiResponse<AuthResponse>>('/auth/signup', data);
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error?.message || 'Signup failed');
+    }
+    return response.data.data;
   },
 
   /**
@@ -38,18 +44,23 @@ export const AuthService = {
   async googleAuth(idToken: string): Promise<AuthResponse> {
     // Assuming backend has a specific endpoint for Google Auth, often /auth/google
     // or passing idToken to login
-    const response = await apiClient.post<AuthResponse>('/auth/google', { idToken });
-    return response.data;
+    const response = await apiClient.post<ApiResponse<AuthResponse>>('/auth/google', { idToken });
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error?.message || 'Google Auth failed');
+    }
+    return response.data.data;
   },
 
   /**
    * Refresh access token
    */
   async refreshToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
-    const response = await apiClient.post<{ tokens: { access: { token: string }, refresh: { token: string } } }>('/auth/refresh-tokens', { refreshToken });
+    const response = await apiClient.post<ApiResponse<{ accessToken: string, refreshToken: string }>>('/auth/refresh', { refreshToken });
+    const data = response.data.data;
+    if (!data) throw new Error('Failed to refresh token');
     return {
-      accessToken: response.data.tokens.access.token,
-      refreshToken: response.data.tokens.refresh.token,
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
     };
   },
 
@@ -71,7 +82,7 @@ export const AuthService = {
    * Reset password with token
    */
   async resetPassword(token: string, newPassword: string): Promise<void> {
-    await apiClient.post(`/auth/reset-password?token=${token}`, { password: newPassword });
+    await apiClient.post(`/auth/reset-password`, { token, password: newPassword });
   },
 };
 

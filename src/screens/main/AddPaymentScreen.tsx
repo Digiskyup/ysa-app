@@ -6,12 +6,16 @@ import { YInput } from '../../components/YInput';
 import { PaymentMode } from '../../types';
 import PaymentService from '../../services/PaymentService';
 import { spacing } from '../../theme';
+import { selectLocale } from '../../redux/slices/appSlice';
 import { i18n } from '../../i18n';
+import { useAppDispatch, useAppSelector } from '../../redux/hooks'; // Added import for hooks
 
 export const AddPaymentScreen = ({ navigation }: any) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  
+  const dispatch = useAppDispatch(); // Added dispatch hook
+  const locale = useAppSelector(selectLocale); // Added locale selector
+
   const [studentId, setStudentId] = useState('');
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
@@ -24,7 +28,7 @@ export const AddPaymentScreen = ({ navigation }: any) => {
 
   const handleCreatePayment = async () => {
     if (!studentId || !amount) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      Alert.alert(i18n.t('error', { defaultValue: 'Error' }), i18n.t('err_fill_required', { defaultValue: 'Please fill in all required fields' }));
       return;
     }
 
@@ -37,12 +41,12 @@ export const AddPaymentScreen = ({ navigation }: any) => {
         paymentMode: selectedPaymentMode,
         notes,
       });
-      Alert.alert('Success', 'Payment recorded successfully', [
+      Alert.alert(i18n.t('success', { defaultValue: 'Success' }), i18n.t('msg_payment_recorded', { defaultValue: 'Payment recorded successfully' }), [
         { text: 'OK', onPress: () => navigation.goBack() }
       ]);
     } catch (error) {
        console.error('Failed to create payment', error);
-       Alert.alert('Error', 'Failed to create payment');
+       Alert.alert(i18n.t('error', { defaultValue: 'Error' }), i18n.t('err_create_payment', { defaultValue: 'Failed to create payment' }));
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +61,7 @@ export const AddPaymentScreen = ({ navigation }: any) => {
         
         <YInput
           label="Student ID (Email or ID)"
-          placeholder="Enter student identifier"
+          placeholder={i18n.t('placeholder_student_id', { defaultValue: 'Enter student identifier' })}
           value={studentId}
           onChangeText={setStudentId}
           style={{ marginBottom: spacing.lg }}
@@ -65,7 +69,7 @@ export const AddPaymentScreen = ({ navigation }: any) => {
 
         <YInput
           label="Amount"
-          placeholder="Enter amount"
+          placeholder={i18n.t('placeholder_amount', { defaultValue: 'Enter amount' })}
           value={amount}
           onChangeText={setAmount}
           keyboardType="numeric"
@@ -73,7 +77,7 @@ export const AddPaymentScreen = ({ navigation }: any) => {
         />
 
         <View style={{ marginBottom: spacing.lg }}>
-          <Text category="label" style={{ marginBottom: spacing.xs }}>Payment Mode</Text>
+          <Text category="label" style={{ marginBottom: spacing.xs }}>{i18n.t('label_payment_mode', { defaultValue: 'Payment Mode' })}</Text>
           <Select
             selectedIndex={paymentModeIndex}
             onSelect={setPaymentModeIndex}
@@ -86,7 +90,7 @@ export const AddPaymentScreen = ({ navigation }: any) => {
         </View>
 
         <View style={{ marginBottom: spacing.lg }}>
-           <Text category="label" style={{ marginBottom: spacing.xs }}>Date</Text>
+           <Text category="label" style={{ marginBottom: spacing.xs }}>{i18n.t('label_date', { defaultValue: 'Date' })}</Text>
            <Datepicker
              date={date}
              onSelect={setDate}
@@ -95,7 +99,7 @@ export const AddPaymentScreen = ({ navigation }: any) => {
 
         <YInput
           label="Notes"
-          placeholder="Optional notes"
+          placeholder={i18n.t('placeholder_notes', { defaultValue: 'Optional notes' })}
           value={notes}
           onChangeText={setNotes}
           multiline

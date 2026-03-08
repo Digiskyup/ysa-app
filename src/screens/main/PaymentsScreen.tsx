@@ -8,6 +8,7 @@ import {
   useTheme,
 } from '@ui-kitten/components';
 import { NotificationBell } from '../../components/NotificationBell';
+import { selectLocale } from '../../redux/slices/appSlice';
 import { i18n } from '../../i18n';
 import {
   StyleSheet,
@@ -24,6 +25,8 @@ import { EmptyState } from '../../components/EmptyState';
 import { useAppSelector } from '../../redux/hooks';
 import { Payment, PaymentStatus, PaymentMode, UserRole, User } from '../../types';
 import PaymentService from '../../services/PaymentService';
+import apiClient from '../../services/api/client';
+import * as FileSystem from 'expo-file-system';
 import { spacing, borderRadius } from '../../theme';
 
 // Mock payment data
@@ -38,11 +41,13 @@ const PAYMENT_FILTERS = [
   { label: 'rejected', getLabel: () => i18n.t('payment_rejected') },
 ];
 
-export const PaymentsScreen = () => {
+export const PaymentsScreen = ({ isTabMode = false }: any) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const userRole = useAppSelector((state) => state.auth.role);
-  const currentUser = useAppSelector((state) => state.auth.user);
+  const user = useAppSelector((state) => state.auth.user);
+  const locale = useAppSelector(selectLocale); // Listen for language changes
+  const accessToken = useAppSelector((state) => state.auth.accessToken);
 
   const isStaff = userRole === UserRole.ADMIN || userRole === UserRole.RECEPTIONIST || userRole === UserRole.SUPER_ADMIN;
   const canBulkNotify = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.ADMIN;
@@ -64,7 +69,7 @@ export const PaymentsScreen = () => {
       setPayments(data);
     } catch (error) {
       console.error('Failed to fetch payments', error);
-      Alert.alert('Error', 'Failed to fetch payments');
+      Alert.alert(i18n.t('error', { defaultValue: 'Error' }), i18n.t('err_fetch_payments', { defaultValue: 'Failed to fetch payments' }));
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -122,24 +127,45 @@ export const PaymentsScreen = () => {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Send',
-          onPress: () => {
-            // Mock send notification
-            Alert.alert('Success', 'Payment reminders sent!');
-            setSelectedPayments(new Set());
-            setSelectMode(false);
+          onPress: async () => {
+             setIsLoading(true);
+             try {
+                await apiClient.post('/payments/reminders', { paymentIds: Array.from(selectedPayments) });
+                Alert.alert(i18n.t('success', { defaultValue: 'Success' }), i18n.t('msg_reminders_sent', { defaultValue: 'Payment reminders sent!' }));
+                setSelectedPayments(new Set());
+                setSelectMode(false);
+             } catch (err) {
+                Alert.alert(i18n.t('error', { defaultValue: 'Error' }), i18n.t('err_send_reminders', { defaultValue: 'Failed to send reminders' }));
+             } finally {
+                setIsLoading(false);
+             }
           },
         },
       ]
     );
   };
 
-  const handleDownloadReceipt = (payment: Payment) => {
+  const handleDownloadReceipt = async (payment: Payment) => {
     if (payment.status !== PaymentStatus.APPROVED) {
-      Alert.alert('Not Available', 'Receipt is only available for approved payments.');
+      Alert.alert(i18n.t('error', { defaultValue: 'Error' }), i18n.t('err_receipt_not_approved', { defaultValue: 'Receipt is only available for approved payments.' }));
       return;
     }
-    // Mock download
-    Alert.alert('Download Started', `Downloading receipt ${payment.receiptNumber}...`);
+    try {
+      const fileUri = `${FileSystem.documentDirectory}receipt_${payment.receiptNumber}.pdf`;
+      const baseUrl = apiClient.defaults.baseURL || 'http://localhost:3000/api/v1';
+      const downloadRes = await FileSystem.downloadAsync(
+        `${baseUrl}/payments/${payment._id}/receipt`,
+        fileUri,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+      Alert.alert(i18n.t('success', { defaultValue: 'Success' }), `${i18n.t('msg_receipt_saved', { defaultValue: 'Receipt saved to: ' })}${downloadRes.uri}`);
+    } catch (err) {
+      Alert.alert(i18n.t('error', { defaultValue: 'Error' }), i18n.t('err_download_receipt', { defaultValue: 'Could not download the receipt.' }));
+    }
   };
 
   const formatCurrency = (amount: number) => `₹${amount.toLocaleString()}`;
@@ -163,29 +189,31 @@ export const PaymentsScreen = () => {
   );
 
   return (
-    <Layout style={[styles.container, { paddingTop: insets.top }]}>
+    <Layout style={[styles.container, !isTabMode && { paddingTop: insets.top }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text category="h5" style={{ fontWeight: '700' }}>
-          {i18n.t('payments_title')}
-        </Text>
-        <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
-          {canBulkNotify && (
-            <Button
-              size="small"
-              appearance={selectMode ? 'filled' : 'ghost'}
-              status="basic"
-              onPress={() => {
-                setSelectMode(!selectMode);
-                setSelectedPayments(new Set());
-              }}
-            >
-              {selectMode ? 'Cancel' : 'Select'}
-            </Button>
-          )}
-          <NotificationBell />
+      {!isTabMode && (
+        <View style={styles.header}>
+          <Text category="h5" style={{ fontWeight: '700' }}>
+            {i18n.t('payments_title')}
+          </Text>
+          <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
+            {canBulkNotify && (
+              <Button
+                size="small"
+                appearance={selectMode ? 'filled' : 'ghost'}
+                status="basic"
+                onPress={() => {
+                  setSelectMode(!selectMode);
+                  setSelectedPayments(new Set());
+                }}
+              >
+                {selectMode ? 'Cancel' : 'Select'}
+              </Button>
+            )}
+            <NotificationBell />
+          </View>
         </View>
-      </View>
+      )}
 
 
       {/* Bulk Actions */}
@@ -254,7 +282,7 @@ export const PaymentsScreen = () => {
         ListEmptyComponent={
           <EmptyState
             icon="card-outline"
-            title="No payments"
+            title={i18n.t('no_payments', { defaultValue: 'No payments' })}
             message={isStaff ? 'No payments recorded yet' : 'No payment history found'}
           />
         }
@@ -264,7 +292,7 @@ export const PaymentsScreen = () => {
       <BottomSheetModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
-        title="Payment Details"
+        title={i18n.t('payment_details', { defaultValue: 'Payment Details' })}
       >
         {selectedPayment && (
           <View style={styles.modalContent}>
@@ -365,6 +393,28 @@ export const PaymentsScreen = () => {
               >
                 Download Receipt
               </Button>
+            )}
+
+            {isStaff && selectedPayment.status === PaymentStatus.PENDING_APPROVAL && (
+              <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
+                <Button style={{ flex: 1 }} appearance="outline" onPress={() => {
+                  Alert.prompt('Reject Payment', 'Enter rejection reason:', [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Reject', style: 'destructive', onPress: async (reason) => {
+                      try {
+                        await apiClient.put(`/payments/${selectedPayment._id}/approval`, { status: PaymentStatus.REJECTED, rejectionReason: reason });
+                        setModalVisible(false); fetchPayments();
+                      } catch (e) { Alert.alert(i18n.t('error', { defaultValue: 'Error' }), i18n.t('err_reject_payment', { defaultValue: 'Failed to reject payment' })); }
+                    }}
+                  ])
+                }}>{i18n.t('action_reject', { defaultValue: 'Reject' })}</Button>
+                <Button style={{ flex: 1 }} status="success" onPress={async () => {
+                  try {
+                    await apiClient.put(`/payments/${selectedPayment._id}/approval`, { status: PaymentStatus.APPROVED });
+                    setModalVisible(false); fetchPayments();
+                  } catch (e) { Alert.alert(i18n.t('error', { defaultValue: 'Error' }), i18n.t('err_approve_payment', { defaultValue: 'Failed to approve payment' })); }
+                }}>{i18n.t('action_approve', { defaultValue: 'Approve' })}</Button>
+              </View>
             )}
           </View>
         )}

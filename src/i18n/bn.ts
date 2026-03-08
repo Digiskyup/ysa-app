@@ -15,6 +15,7 @@ export default {
   error: 'ত্রুটি',
   success: 'সফল',
   retry: 'পুনরায় চেষ্টা করুন',
+  welcome_back: 'আবার স্বাগতম',
   
   // Auth
   login: 'সাইন ইন করুন',
@@ -43,8 +44,15 @@ export default {
   nav_admins: 'স্টাফ',
   nav_payments: 'পেমেন্ট',
   nav_profile: 'প্রোফাইল',
+  add_payment: 'যোগ করুন',
+  dashboard: 'ড্যাশবোর্ড',
+  latest_approvals: 'সাম্প্রতিক অনুমোদনগুলি',
+  quick_actions: 'দ্রুত কর্ম',
+  action_add_student: 'ছাত্র যোগ করুন',
+  action_add_payment: 'পেমেন্ট যোগ করুন',
+  recent_updates: 'সাম্প্রতিক আপডেটগুলি',
+  no_recent_updates: 'কোন সাম্প্রতিক আপডেট নেই',
   
-  // Approvals
   approvals_title: 'অনুমোদন',
   approvals_pending: 'অপেক্ষমান',
   approvals_approved: 'অনুমোদিত',
@@ -85,4 +93,83 @@ export default {
   pull_to_refresh: 'রিফ্রেশ করতে নিচে টানুন',
   no_data: 'কোন তথ্য নেই',
   no_results: 'কোন ফলাফল পাওয়া যায়নি',
+  add_staff: 'স্টাফ সদস্য যোগ করুন',
+  
+  // Filters
+  filter_reset: 'রিসেট',
+  filter_apply: 'ফিল্টার প্রয়োগ করুন',
+  filter_from: 'থেকে ',
+  filter_to: ' পর্যন্ত ',
+  
+  // Banner
+  banner_title: 'Your Success Academy',
+  banner_subtitle: 'আপনার শিক্ষা যাত্রা দক্ষতার সাথে পরিচালনা করুন।',
+  dashboard_metrics: 'পেমেন্ট মেট্রিক্স চার্ট',
+  dashboard_approvals_placeholder: 'অনুমোদন তালিকা স্থানধারক',
+  
+  // Payment Details
+  no_payments: 'কোন পেমেন্ট নেই',
+  payment_details: 'পেমেন্ট বিবরণ',
+  action_reject: 'প্রত্যাখ্যান করুন',
+  action_approve: 'অনুমোদন করুন',
+  err_fetch_payments: 'পেমেন্ট আনতে ব্যর্থ হয়েছে',
+  msg_reminders_sent: 'পেমেন্ট রিমাইন্ডার পাঠানো হয়েছে!',
+  err_send_reminders: 'রিমাইন্ডার পাঠাতে ব্যর্থ হয়েছে',
+  err_receipt_not_approved: 'রসিদ শুধুমাত্র অনুমোদিত পেমেন্টের জন্য উপলব্ধ।',
+  msg_receipt_saved: 'রসিদ সংরক্ষিত হয়েছে: ',
+  err_download_receipt: 'রসিদ ডাউনলোড করা যায়নি।',
+  
+  // Add Payment
+  label_payment_mode: 'পেমেন্ট মোড',
+  label_date: 'তারিখ',
+  placeholder_student_id: 'ছাত্র পরিচয়পত্র লিখুন',
+  placeholder_amount: 'পরিমাণ লিখুন',
+  placeholder_notes: 'ঐচ্ছিক নোট',
+  err_fill_required: 'অনুগ্রহ করে সকল প্রয়োজনীয় ক্ষেত্র পূরণ করুন',
+  err_create_payment: 'পেমেন্ট তৈরি করতে ব্যর্থ হয়েছে',
+  
+  // Staff
+  no_staff: 'কোন স্টাফ পাওয়া যায়নি',
+  edit_permissions: 'অনুমতি সম্পাদনা করুন',
+  placeholder_fullname: 'পুরো নাম লিখুন',
+  placeholder_email: 'ইমেইল ঠিকানা লিখুন',
+  placeholder_phone: 'ফোন নম্বর লিখুন',
+  msg_permissions_updated: 'অনুমতি আপডেট করা হয়েছে',
+  err_update_permissions: 'অনুমতি আপডেট করতে ব্যর্থ হয়েছে',
+  msg_staff_created: 'স্টাফ সদস্য সফলভাবে তৈরি হয়েছে',
+  err_create_staff: 'স্টাফ তৈরি করতে ব্যর্থ হয়েছে',
+  
+  // Student
+  student_details: 'ছাত্রের বিবরণ',
+  err_delete_student: 'ছাত্র মুছতে ব্যর্থ হয়েছে',
+  back: 'পিছনে',
+  title_edit_student: 'ছাত্র সম্পাদনা করুন',
+  err_no_student_id: 'কোন ছাত্র আইডি প্রদান করা হয়নি',
+  err_load_student: 'ছাত্রের বিবরণ লোড করতে ব্যর্থ হয়েছে',
+  err_name_email_required: 'নাম এবং ইমেইল প্রয়োজনীয়',
+  msg_student_updated: 'ছাত্র সফলভাবে আপডেট করা হয়েছে',
+  err_update_student: 'ছাত্র আপডেট করতে ব্যর্থ হয়েছে',
+  title_add_student: 'ছাত্র যোগ করুন',
+  err_name_email_pass_required: 'নাম, ইমেইল এবং পাসওয়ার্ড প্রয়োজনীয়',
+  msg_student_created: 'ছাত্র সফলভাবে তৈরি হয়েছে',
+  err_create_student_failed: 'ছাত্র তৈরি করতে ব্যর্থ হয়েছে',
+  
+  // Profile
+  placeholder_name: 'আপনার নাম লিখুন',
+  msg_profile_updated: 'প্রোফাইল সফলভাবে আপডেট করা হয়েছে!',
+  err_update_profile: 'প্রোফাইল আপডেট করতে ব্যর্থ হয়েছে',
+  
+  // Auth Extra
+  err_email_missing_reset: 'আপনার পাসওয়ার্ড রিসেট করতে অনুগ্রহ করে আপনার ইমেল ঠিকানা লিখুন।',
+  msg_reset_instructions_sent: 'পাসওয়ার্ড রিসেট নির্দেশাবলী আপনার ইমেইলে পাঠানো হয়েছে।',
+  err_login_failed: 'লগইন ব্যর্থ হয়েছে',
+  err_google_signin_failed: 'গুগল সাইন-ইন ব্যর্থ হয়েছে',
+  placeholder_create_password: 'একটি পাসওয়ার্ড তৈরি করুন',
+  placeholder_confirm_password: 'পাসওয়ার্ড নিশ্চিত করুন',
+  title_reset_password: 'পাসওয়ার্ড রিসেট করুন',
+  placeholder_reset_token: 'এখানে টোকেন পেস্ট করুন',
+  placeholder_new_password: 'নতুন পাসওয়ার্ড লিখুন',
+  err_token_pass_required: 'রিসেট টোকেন এবং নতুন পাসওয়ার্ড লিখুন',
+  msg_password_reset_success: 'পাসওয়ার্ড সফলভাবে রিসেট করা হয়েছে। অনুগ্রহ করে লগইন করুন।',
+  err_reset_password: 'পাসওয়ার্ড রিসেট করতে ব্যর্থ হয়েছে',
 };

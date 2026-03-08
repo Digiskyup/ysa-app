@@ -38,7 +38,7 @@ export const NotificationList = ({ onItemPress }: NotificationListProps) => {
       case 'approval':
         return 'checkmark-circle-outline';
       case 'reminder':
-        return 'bell-outline';
+        return 'notifications-outline';
       default:
         return 'info-outline';
     }
@@ -160,8 +160,7 @@ export const NotificationList = ({ onItemPress }: NotificationListProps) => {
 
 const styles = StyleSheet.create({
   container: {
-    maxHeight: 400,
-    width: 320,
+    flex: 1,
   },
   header: {
     flexDirection: 'row',

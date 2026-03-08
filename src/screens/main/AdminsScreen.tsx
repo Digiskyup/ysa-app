@@ -8,6 +8,8 @@ import {
   Toggle,
 } from '@ui-kitten/components';
 import { NotificationBell } from '../../components/NotificationBell';
+import { selectLocale } from '../../redux/slices/appSlice';
+import { useAppSelector } from '../../redux/hooks';
 import { i18n } from '../../i18n';
 import {
   StyleSheet,
@@ -15,6 +17,7 @@ import {
   FlatList,
   RefreshControl,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FilterChip } from '../../components/FilterChip';
@@ -24,6 +27,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { YInput } from '../../components/YInput';
 import { User, UserRole, PermissionActions } from '../../types';
 import UserService from '../../services/UserService';
+import PermissionService from '../../services/PermissionService';
 import { spacing, borderRadius } from '../../theme';
 
 // Mock data for admins/staff
@@ -48,9 +52,10 @@ const ALL_PERMISSIONS = [
   { key: PermissionActions.PAYMENT_APPROVE, label: 'Approve Payments' },
 ];
 
-export const AdminsScreen = () => {
+export const AdminsScreen = ({ isTabMode = false }: any) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const locale = useAppSelector(selectLocale); // Listen for language changes
 
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [selectedRole, setSelectedRole] = useState<RoleFilter>('all');
@@ -98,7 +103,7 @@ export const AdminsScreen = () => {
 
   const handleAdminPress = (admin: AdminUser) => {
     setSelectedAdmin(admin);
-    setEditedPermissions([...admin.permissions]);
+    setEditedPermissions([...(admin.permissions || [])]);
     setEditModalVisible(true);
   };
 
@@ -110,38 +115,44 @@ export const AdminsScreen = () => {
     );
   };
 
-  const handleSavePermissions = () => {
+  const handleSavePermissions = async () => {
     if (selectedAdmin) {
-      setAdmins((prev) =>
-        prev.map((a) =>
-          a._id === selectedAdmin._id
-            ? { ...a, permissions: editedPermissions }
-            : a
-        )
-      );
+      try {
+        await PermissionService.grantPermissions(selectedAdmin._id, editedPermissions);
+        setAdmins((prev) =>
+          prev.map((a) =>
+            a._id === selectedAdmin._id
+              ? { ...a, permissions: editedPermissions }
+              : a
+          )
+        );
+        Alert.alert(i18n.t('success', { defaultValue: 'Success' }), i18n.t('msg_permissions_updated', { defaultValue: 'Permissions updated' }));
+      } catch (err) {
+        Alert.alert(i18n.t('error', { defaultValue: 'Error' }), i18n.t('err_update_permissions', { defaultValue: 'Failed to update permissions' }));
+      }
     }
     setEditModalVisible(false);
   };
 
-  const handleAddAdmin = () => {
-    // TODO: Implement actual API call to create admin
-    const newAdmin = {
-      _id: Date.now().toString(),
-      email: newEmail,
-      name: newName,
-      role: newRole,
-      phone: newPhone,
-      permissions: [PermissionActions.STUDENT_READ, PermissionActions.PAYMENT_READ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    } as AdminUser;
-    
-    // Ideally we call UserService.createStaff(...) here
-    setAdmins((prev) => [...prev, newAdmin]);
-    setAddModalVisible(false);
-    setNewName('');
-    setNewEmail('');
-    setNewPhone('');
+  const handleAddAdmin = async () => {
+    if (!newName.trim() || !newEmail.trim()) return;
+    try {
+      const newAdmin = await UserService.createStaff({
+        email: newEmail.trim(),
+        name: newName.trim(),
+        role: newRole,
+        phone: newPhone.trim(),
+        password: 'TemporaryPassword123!', 
+      });
+      setAdmins((prev) => [...prev, newAdmin as AdminUser]);
+      setAddModalVisible(false);
+      setNewName('');
+      setNewEmail('');
+      setNewPhone('');
+      Alert.alert(i18n.t('success', { defaultValue: 'Success' }), i18n.t('msg_staff_created', { defaultValue: 'Staff member created successfully' }));
+    } catch (error: any) {
+      Alert.alert(i18n.t('error', { defaultValue: 'Error' }), error.response?.data?.error?.message || error.message || i18n.t('err_create_staff', { defaultValue: 'Failed to create staff' }));
+    }
   };
 
   const renderAdmin = ({ item }: { item: AdminUser }) => (
@@ -149,29 +160,31 @@ export const AdminsScreen = () => {
   );
 
   return (
-    <Layout style={[styles.container, { paddingTop: insets.top }]}>
+    <Layout style={[styles.container, !isTabMode && { paddingTop: insets.top }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text category="h5" style={{ fontWeight: '700' }}>
-            {i18n.t('nav_admins')}
-          </Text>
-          <Text category="c1" appearance="hint">
-            {admins.length} {`${i18n.t('staff_members')}`}
-          </Text>
+      {!isTabMode && (
+        <View style={styles.header}>
+          <View>
+            <Text category="h5" style={{ fontWeight: '700' }}>
+              {i18n.t('nav_admins')}
+            </Text>
+            <Text category="c1" appearance="hint">
+              {admins.length} {`${i18n.t('staff_members')}`}
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
+            <Button
+              size="small"
+              accessoryLeft={(props: any) => <Icon {...props} name="add-outline" />}
+              onPress={() => setAddModalVisible(true)}
+              style={{ borderRadius: borderRadius.lg }}
+            >
+              {`${i18n.t('add')}`}
+            </Button>
+            <NotificationBell />
+          </View>
         </View>
-        <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
-          <Button
-            size="small"
-            accessoryLeft={(props: any) => <Icon {...props} name="add-outline" />}
-            onPress={() => setAddModalVisible(true)}
-            style={{ borderRadius: borderRadius.lg }}
-          >
-            {`${i18n.t('add')}`}
-          </Button>
-          <NotificationBell />
-        </View>
-      </View>
+      )}
 
       {/* Filter Chips */}
       <View style={styles.filterContainer}>
@@ -208,7 +221,7 @@ export const AdminsScreen = () => {
         ListEmptyComponent={
           <EmptyState
             icon="shield-outline"
-            title="No staff found"
+            title={i18n.t('no_staff', { defaultValue: 'No staff found' })}
             message="Add admins or receptionists to manage your academy"
           />
         }
@@ -218,7 +231,7 @@ export const AdminsScreen = () => {
       <BottomSheetModal
         visible={editModalVisible}
         onClose={() => setEditModalVisible(false)}
-        title="Edit Permissions"
+        title={i18n.t('edit_permissions', { defaultValue: 'Edit Permissions' })}
       >
         {selectedAdmin && (
           <View style={styles.modalContent}>
@@ -280,12 +293,12 @@ export const AdminsScreen = () => {
       <BottomSheetModal
         visible={addModalVisible}
         onClose={() => setAddModalVisible(false)}
-        title="Add Staff Member"
+        title={i18n.t('add_staff', { defaultValue: 'Add Staff Member' })}
       >
         <View style={styles.modalContent}>
           <YInput
             label="Full Name"
-            placeholder="Enter full name"
+            placeholder={i18n.t('placeholder_fullname', { defaultValue: 'Enter full name' })}
             value={newName}
             onChangeText={setNewName}
             style={{ marginBottom: spacing.lg }}
@@ -293,7 +306,7 @@ export const AdminsScreen = () => {
 
           <YInput
             label="Email"
-            placeholder="Enter email address"
+            placeholder={i18n.t('placeholder_email', { defaultValue: 'Enter email address' })}
             value={newEmail}
             onChangeText={setNewEmail}
             keyboardType="email-address"
@@ -303,7 +316,7 @@ export const AdminsScreen = () => {
 
           <YInput
             label="Phone"
-            placeholder="Enter phone number"
+            placeholder={i18n.t('placeholder_phone', { defaultValue: 'Enter phone number' })}
             value={newPhone}
             onChangeText={setNewPhone}
             keyboardType="phone-pad"

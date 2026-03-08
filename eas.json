@@ -6,14 +6,31 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "env": {
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "SENTRY_DISABLE_NATIVE_DEBUG_UPLOAD": "true"
+      },
       "android": {
-        "gradleCommand": ":app:assembleDebug"
+        "buildType": "apk"
       }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "SENTRY_DISABLE_NATIVE_DEBUG_UPLOAD": "true"
+      }
     },
-    "production": {}
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "SENTRY_DISABLE_NATIVE_DEBUG_UPLOAD": "true"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
   },
   "submit": {
     "production": {}

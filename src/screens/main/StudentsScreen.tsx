@@ -4,15 +4,19 @@ import {
   Text,
   Input,
   Icon,
+  Button,
   useTheme,
 } from '@ui-kitten/components';
 import { NotificationBell } from '../../components/NotificationBell';
+import { selectLocale } from '../../redux/slices/appSlice';
+import { useAppSelector } from '../../redux/hooks';
 import { i18n } from '../../i18n';
 import {
   StyleSheet,
   View,
   FlatList,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FilterChip } from '../../components/FilterChip';
@@ -33,9 +37,11 @@ const FEE_FILTERS = [
   { label: 'overdue', getLabel: () => i18n.t('fee_overdue') },
 ];
 
-export const StudentsScreen = () => {
+export const StudentsScreen = ({ navigation, isTabMode = false }: any) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const user = useAppSelector((state: any) => state.auth.user);
+  const locale = useAppSelector(selectLocale); // Listen for language changes
 
   const [students, setStudents] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -102,19 +108,26 @@ export const StudentsScreen = () => {
   );
 
   return (
-    <Layout style={[styles.container, { paddingTop: insets.top }]}>
+    <Layout style={[styles.container, !isTabMode && { paddingTop: insets.top }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text category="h5" style={{ fontWeight: '700' }}>
-            {i18n.t('students_title')}
-          </Text>
-          <Text category="c1" appearance="hint">
-            {students.length} total
-          </Text>
+      {!isTabMode && (
+        <View style={styles.header}>
+          <View>
+            <Text category="h5" style={{ fontWeight: '700' }}>
+              {i18n.t('students_title')}
+            </Text>
+            <Text category="c1" appearance="hint">
+              {`${students.length} ${i18n.t('total', { defaultValue: 'total' })}`}
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
+            <Button size="small" accessoryLeft={(props: any) => <Icon {...props} name="person-add-outline" />} onPress={() => navigation.navigate('CreateStudent')}>
+               {i18n.t('add', { defaultValue: 'Add' })}
+            </Button>
+            <NotificationBell />
+          </View>
         </View>
-        <NotificationBell />
-      </View>
+      )}
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -178,7 +191,7 @@ export const StudentsScreen = () => {
       <BottomSheetModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
-        title="Student Details"
+        title={i18n.t('student_details', { defaultValue: 'Student Details' })}
       >
         {selectedStudent && (
           <View style={styles.modalContent}>
@@ -269,6 +282,23 @@ export const StudentsScreen = () => {
                   </Text>
                 </View>
               )}
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.xl }}>
+              <Button style={{ flex: 1 }} onPress={() => { setModalVisible(false); navigation.navigate('EditStudent', { studentId: selectedStudent._id }); }}>
+                {i18n.t('action_edit', { defaultValue: 'Edit' })}
+              </Button>
+              <Button style={{ flex: 1 }} status="danger" appearance="outline" onPress={() => { 
+                Alert.alert(i18n.t('confirm_delete', { defaultValue: 'Confirm Delete' }), i18n.t('msg_confirm_delete_student', { defaultValue: 'Are you sure you want to delete this student?' }), [
+                  { text: i18n.t('action_cancel', { defaultValue: 'Cancel' }), style: 'cancel' },
+                  { text: i18n.t('action_delete', { defaultValue: 'Delete' }), style: 'destructive', onPress: async () => { 
+                      try { await UserService.deleteStudent(selectedStudent._id); setModalVisible(false); fetchStudents(); } 
+                      catch (err: any) { Alert.alert(i18n.t('error', { defaultValue: 'Error' }), i18n.t('err_delete_student', { defaultValue: 'Failed to delete student' })); } 
+                  }}
+                ]); 
+              }}>
+                {i18n.t('action_delete', { defaultValue: 'Delete' })}
+              </Button>
             </View>
           </View>
         )}

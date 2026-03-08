@@ -17,10 +17,8 @@ export const Main = () => {
   const locale = useAppSelector(selectLocale);
   const theme = themeMode === 'light' ? customLightTheme : customDarkTheme;
 
-  // Update locale when it changes in Redux
-  useEffect(() => {
-    i18n.locale = locale;
-  }, [locale]);
+  // Set synchronously during render so children receive updated locale immediately
+  i18n.locale = locale;
 
   useEffect(() => {
     // Initialize notifications
@@ -37,8 +35,7 @@ export const Main = () => {
       <IconRegistry icons={[EvaIconsPack, IoniconsPack]} />
       <ApplicationProvider {...eva} theme={theme}>
         <StatusBar style={themeMode === 'light' ? 'dark' : 'light'} />
-        {/* Pass key based on locale to force re-render of navigator when language changes */}
-        <AppNavigator key={locale} />
+        <AppNavigator />
       </ApplicationProvider>
     </SafeAreaProvider>
   );

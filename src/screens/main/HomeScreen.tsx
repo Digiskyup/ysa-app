@@ -3,6 +3,7 @@ import { Layout, Text, Button, Icon, useTheme } from '@ui-kitten/components';
 import { StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSelector } from '../../redux/hooks';
+import { selectLocale } from '../../redux/slices/appSlice';
 import { i18n } from '../../i18n';
 import { spacing, borderRadius, shadows } from '../../theme';
 import { UserRole } from '../../types';
@@ -11,6 +12,7 @@ export const HomeScreen = ({ navigation }: any) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const user = useAppSelector((state) => state.auth.user);
+  const locale = useAppSelector(selectLocale); // Listen for language changes to trigger re-renders
 
   const QuickAction = ({ icon, title, onPress, color }: any) => (
     <TouchableOpacity 
@@ -42,47 +44,89 @@ export const HomeScreen = ({ navigation }: any) => {
         {/* Banner */}
         <View style={[styles.banner, { backgroundColor: theme['color-primary-500'] }]}>
           <View style={{ flex: 1 }}>
-            <Text category="h6" style={{ color: 'white', marginBottom: spacing.xs }}>Your Success Academy</Text>
-            <Text category="c1" style={{ color: 'white', opacity: 0.9 }}>Manage your education journey efficiently.</Text>
+            <Text category="h6" style={{ color: 'white', marginBottom: spacing.xs }}>{i18n.t('banner_title', { defaultValue: 'Your Success Academy' })}</Text>
+            <Text category="c1" style={{ color: 'white', opacity: 0.9 }}>{i18n.t('banner_subtitle', { defaultValue: 'Manage your education journey efficiently.' })}</Text>
           </View>
-          <Icon name="book-open-outline" fill="white" style={{ width: 48, height: 48, opacity: 0.8 }} />
+          <Icon name="book-outline" fill="white" style={{ width: 48, height: 48, opacity: 0.8 }} />
         </View>
 
-        <Text category='h6' style={styles.sectionTitle}>Quick Actions</Text>
+        {user?.role === UserRole.SUPER_ADMIN ? (
+          <>
+            <Text category='h6' style={styles.sectionTitle}>{i18n.t('dashboard', { defaultValue: 'Dashboard' })}</Text>
+            <View style={[styles.emptyCard, { backgroundColor: theme['background-basic-color-2'], marginBottom: spacing.xl }]}>
+                <Icon name="pie-chart-outline" fill={theme['text-hint-color']} style={{ width: 48, height: 48, marginBottom: spacing.md }} />
+                <Text appearance="hint">{i18n.t('dashboard_metrics', { defaultValue: 'Payment Metrics Chart' })}</Text>
+            </View>
 
-        <View style={styles.actionsGrid}>
-           <QuickAction 
-             icon="people-outline" 
-             title="Students" 
-             color={theme['color-info-500']}
-             onPress={() => navigation.navigate('Students')}
-           />
-           <QuickAction 
-             icon="credit-card-outline" 
-             title="Payments" 
-             color={theme['color-success-500']}
-             onPress={() => navigation.navigate('Payments')}
-           />
-           {(user?.role === UserRole.ADMIN || user?.role === UserRole.SUPER_ADMIN) && (
-             <QuickAction 
-               icon="shield-outline" 
-               title="Admins" 
-               color={theme['color-warning-500']}
-               onPress={() => navigation.navigate('Admins')}
-             />
-           )}
-           <QuickAction 
-             icon="settings-outline" 
-             title="Profile" 
-             color={theme['color-primary-500']}
-             onPress={() => navigation.navigate('Profile')}
-           />
-        </View>
+            <Text category='h6' style={styles.sectionTitle}>{i18n.t('latest_approvals', { defaultValue: 'Latest Approvals' })}</Text>
+            <View style={[styles.emptyCard, { backgroundColor: theme['background-basic-color-2'], marginBottom: spacing.xl }]}>
+                <Icon name="checkbox-outline" fill={theme['text-hint-color']} style={{ width: 48, height: 48, marginBottom: spacing.md }} />
+                <Text appearance="hint">{i18n.t('dashboard_approvals_placeholder', { defaultValue: 'Approval List Placeholder' })}</Text>
+                <Button size="small" appearance="ghost" onPress={() => navigation.navigate('Payments', { screen: 'Approvals' })}>
+                  View All Approvals
+                </Button>
+            </View>
+
+            <Text category='h6' style={styles.sectionTitle}>{i18n.t('quick_actions', { defaultValue: 'Quick Actions' })}</Text>
+            <View style={styles.actionsGrid}>
+               <QuickAction 
+                 icon="person-add-outline" 
+                 title={i18n.t('action_add_student', { defaultValue: 'Add Student' })} 
+                 color={theme['color-info-500']}
+                 onPress={() => navigation.navigate('CreateStudent')}
+               />
+               <QuickAction 
+                 icon="shield-outline" 
+                 title={i18n.t('add_staff', { defaultValue: 'Add Staff Member' })} 
+                 color={theme['color-warning-500']}
+                 onPress={() => navigation.navigate('Users')}
+               />
+               <QuickAction 
+                 icon="add-circle-outline" 
+                 title={i18n.t('action_add_payment', { defaultValue: 'Add Payment' })} 
+                 color={theme['color-success-500']}
+                 onPress={() => navigation.navigate('AddPayment')}
+               />
+            </View>
+          </>
+        ) : (
+          <>
+            <Text category='h6' style={styles.sectionTitle}>{i18n.t('quick_actions', { defaultValue: 'Quick Actions' })}</Text>
+            <View style={styles.actionsGrid}>
+               <QuickAction 
+                 icon="people-outline" 
+                 title={i18n.t('nav_students', { defaultValue: 'Students' })} 
+                 color={theme['color-info-500']}
+                 onPress={() => navigation.navigate('Students')}
+               />
+               <QuickAction 
+                 icon="card-outline" 
+                 title={i18n.t('nav_payments', { defaultValue: 'Payments' })} 
+                 color={theme['color-success-500']}
+                 onPress={() => navigation.navigate('Payments')}
+               />
+               {(user?.role === UserRole.ADMIN) && (
+                 <QuickAction 
+                   icon="shield-outline" 
+                   title={i18n.t('nav_admins', { defaultValue: 'Staff' })} 
+                   color={theme['color-warning-500']}
+                   onPress={() => navigation.navigate('Admins')}
+                 />
+               )}
+               <QuickAction 
+                 icon="settings-outline" 
+                 title={i18n.t('nav_profile', { defaultValue: 'Profile' })} 
+                 color={theme['color-primary-500']}
+                 onPress={() => navigation.navigate('Profile')}
+               />
+            </View>
+          </>
+        )}
 
         {/* Recent Activity Placeholder */}
-        <Text category='h6' style={styles.sectionTitle}>Recent Updates</Text>
+        <Text category='h6' style={styles.sectionTitle}>{i18n.t('recent_updates', { defaultValue: 'Recent Updates' })}</Text>
         <View style={[styles.emptyCard, { backgroundColor: theme['background-basic-color-2'] }]}>
-            <Text appearance="hint">No recent updates</Text>
+            <Text appearance="hint">{i18n.t('no_recent_updates', { defaultValue: 'No recent updates' })}</Text>
         </View>
 
       </ScrollView>
