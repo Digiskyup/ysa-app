@@ -21,6 +21,7 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { useAppSelector, useAppDispatch } from '../../redux/hooks';
 import { logout, updateUser } from '../../redux/slices/authSlice';
 import { toggleTheme, setLocale, selectTheme, selectLocale, Locale } from '../../redux/slices/appSlice';
@@ -46,6 +47,7 @@ export const ProfileScreen = ({ navigation }: any) => {
   const [editName, setEditName] = useState(user?.name || '');
   const [editPhone, setEditPhone] = useState(user?.phone || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   // Change Password States
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
@@ -140,6 +142,41 @@ export const ProfileScreen = ({ navigation }: any) => {
     }
   };
 
+  const handleImagePick = async () => {
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+        selectionLimit: 1,
+      });
+
+      if (result.didCancel) return;
+      if (result.errorCode) {
+        console.error('Image picker error:', result.errorMessage);
+        Alert.alert(i18n.t('error', { defaultValue: 'Error' }), result.errorMessage || 'Failed to open image picker');
+        return;
+      }
+
+      if (result.assets && result.assets.length > 0) {
+        setIsUploadingAvatar(true);
+        const imageUri = result.assets[0].uri;
+        if (!imageUri) return;
+        
+        // Upload the image
+        const newAvatarUrl = await UserService.uploadAvatar(imageUri);
+        
+        // Update user in Redux
+        dispatch(updateUser({ profileImage: newAvatarUrl }));
+        Alert.alert(i18n.t('success', { defaultValue: 'Success' }), 'Profile image updated successfully.');
+      }
+    } catch (error: any) {
+      console.error('Failed to update avatar: ', error);
+      Alert.alert(i18n.t('error', { defaultValue: 'Error' }), error?.message || 'Failed to update profile image.');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   // handleLanguageChange moved to LanguageSelector component
 
   const MenuItem = ({
@@ -188,15 +225,25 @@ export const ProfileScreen = ({ navigation }: any) => {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Profile Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.avatarContainer}>
-            <Avatar
-              source={
-                user?.profileImage
-                  ? { uri: user.profileImage }
-                  : { uri: 'https://i.pravatar.cc/300' }
-              }
-              style={styles.avatar}
-            />
+          <TouchableOpacity 
+            style={styles.avatarContainer} 
+            onPress={handleImagePick}
+            disabled={isUploadingAvatar}
+          >
+            {isUploadingAvatar ? (
+              <View style={[styles.avatar, { justifyContent: 'center', alignItems: 'center', backgroundColor: theme['background-basic-color-3'] }]}>
+                <Spinner size="medium" />
+              </View>
+            ) : (
+              <Avatar
+                source={
+                  user?.profileImage
+                    ? { uri: user.profileImage }
+                    : { uri: 'https://i.pravatar.cc/300' }
+                }
+                style={styles.avatar}
+              />
+            )}
             <View
               style={[
                 styles.cameraButton,

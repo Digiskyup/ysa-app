@@ -12,6 +12,9 @@ export const SettingsScreen = ({ navigation }: any) => {
   const dispatch = useAppDispatch();
   const currentTheme = useAppSelector(selectTheme);
   const currentLocale = useAppSelector(selectLocale);
+  const user = useAppSelector((state) => state.auth.user);
+  
+  const isAdmin = user?.role === 'admin' || user?.role === 'super-admin' || user?.role === 'receptionist';
 
   return (
     <Layout style={[styles.container, { paddingTop: insets.top }]}>
@@ -66,6 +69,33 @@ export const SettingsScreen = ({ navigation }: any) => {
             </Button>
           </View>
         </View>
+
+        {isAdmin && (
+          <View
+            style={[
+              styles.section,
+              { backgroundColor: theme['background-basic-color-2'], marginTop: spacing.lg },
+            ]}
+          >
+            <Text category="s1" style={{ fontWeight: '600', marginBottom: spacing.md }}>
+              Admin Tools
+            </Text>
+            <Button
+              status="primary"
+              style={{ marginBottom: spacing.sm }}
+              onPress={() => navigation.navigate('AttendanceTerminal')}
+            >
+              Launch Attendance Kiosk
+            </Button>
+            <Button
+              status="success"
+              appearance="outline"
+              onPress={() => navigation.navigate('FaceRegistration')}
+            >
+              Enroll Student Face
+            </Button>
+          </View>
+        )}
       </ScrollView>
     </Layout>
   );
