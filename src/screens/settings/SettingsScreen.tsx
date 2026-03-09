@@ -87,13 +87,6 @@ export const SettingsScreen = ({ navigation }: any) => {
             >
               Launch Attendance Kiosk
             </Button>
-            <Button
-              status="success"
-              appearance="outline"
-              onPress={() => navigation.navigate('FaceRegistration')}
-            >
-              Enroll Student Face
-            </Button>
           </View>
         )}
       </ScrollView>

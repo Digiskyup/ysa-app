@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, TouchableOpacity } from 'react-native';
 import { Layout, Tab, TabView, Text, Button, Icon, useTheme } from '@ui-kitten/components';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaymentsScreen } from './PaymentsScreen';
@@ -15,6 +15,13 @@ export const PaymentsMainScreen = ({ navigation }: any) => {
   const theme = useTheme();
   const locale = useAppSelector(selectLocale); // Listen for language changes
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [paymentAddTrigger, setPaymentAddTrigger] = useState(0);
+
+  const handleAddPress = () => {
+    if (selectedIndex === 0 || selectedIndex === 1) { // Apply to either tab for now
+      setPaymentAddTrigger(prev => prev + 1);
+    }
+  };
 
   return (
     <Layout style={[styles.container, { paddingTop: insets.top }]}>
@@ -22,7 +29,16 @@ export const PaymentsMainScreen = ({ navigation }: any) => {
         <Text category="h5" style={{ fontWeight: '700' }}>
           {i18n.t('payments_title')}
         </Text>
-        <NotificationBell />
+        <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
+          <Button
+            size="medium"
+            status="primary"
+            accessoryLeft={(props: any) => <Icon {...props} name="add-outline" />}
+            onPress={handleAddPress}
+            style={{ borderRadius: 30, width: 34, height: 34, paddingHorizontal: 0 }}
+          />
+          <NotificationBell />
+        </View>
       </View>
       <TabView
         selectedIndex={selectedIndex}
@@ -31,7 +47,7 @@ export const PaymentsMainScreen = ({ navigation }: any) => {
       >
         <Tab title={i18n.t('payments_title')}>
           <Layout style={styles.tabContainer}>
-            <PaymentsScreen navigation={navigation} isTabMode={true} />
+            <PaymentsScreen navigation={navigation} isTabMode={true} triggerAdd={paymentAddTrigger} />
           </Layout>
         </Tab>
         <Tab title={i18n.t('approvals_title')}>
@@ -40,14 +56,6 @@ export const PaymentsMainScreen = ({ navigation }: any) => {
           </Layout>
         </Tab>
       </TabView>
-      
-      {/* Floating Action Button */}
-      <Button
-        style={styles.fab}
-        status="primary"
-        accessoryLeft={(props: any) => <Icon {...props} name="plus" />}
-        onPress={() => navigation.navigate('AddPayment')}
-      />
     </Layout>
   );
 };

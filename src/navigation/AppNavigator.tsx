@@ -7,7 +7,7 @@ import { BottomTabNavigator } from './BottomTabNavigator';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { ResetPasswordScreen } from '../screens/auth/ResetPasswordScreen';
 import { AttendanceTerminalScreen } from '../screens/main/AttendanceTerminalScreen';
-import { FaceRegistrationScreen } from '../screens/main/FaceRegistrationScreen';
+
 import { useAppSelector } from '../redux/hooks';
 
 const Stack = createStackNavigator();
@@ -24,6 +24,7 @@ export const AppNavigator = () => {
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="SignUp" component={SignUpScreen} />
             <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+            <Stack.Screen name="AttendanceTerminal" component={AttendanceTerminalScreen} />
           </>
         ) : (
           // Main App Stack
@@ -31,7 +32,7 @@ export const AppNavigator = () => {
             <Stack.Screen name="Main" component={BottomTabNavigator} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
             <Stack.Screen name="AttendanceTerminal" component={AttendanceTerminalScreen} />
-            <Stack.Screen name="FaceRegistration" component={FaceRegistrationScreen} />
+
           </>
         )}
       </Stack.Navigator>

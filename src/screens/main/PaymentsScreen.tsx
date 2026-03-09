@@ -6,6 +6,11 @@ import {
   Icon,
   CheckBox,
   useTheme,
+  Select,
+  SelectItem,
+  IndexPath,
+  Datepicker,
+  Spinner,
 } from '@ui-kitten/components';
 import { NotificationBell } from '../../components/NotificationBell';
 import { selectLocale } from '../../redux/slices/appSlice';
@@ -16,11 +21,13 @@ import {
   FlatList,
   RefreshControl,
   Alert,
+  TouchableOpacity
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FilterChip } from '../../components/FilterChip';
 import { PaymentCard } from '../../components/PaymentCard';
 import { BottomSheetModal } from '../../components/BottomSheetModal';
+import { YInput } from '../../components/YInput';
 import { EmptyState } from '../../components/EmptyState';
 import { useAppSelector } from '../../redux/hooks';
 import { Payment, PaymentStatus, PaymentMode, UserRole, User } from '../../types';
@@ -41,7 +48,7 @@ const PAYMENT_FILTERS = [
   { label: 'rejected', getLabel: () => i18n.t('payment_rejected') },
 ];
 
-export const PaymentsScreen = ({ isTabMode = false }: any) => {
+export const PaymentsScreen = ({ navigation, isTabMode = false, triggerAdd = 0 }: any) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const userRole = useAppSelector((state) => state.auth.role);
@@ -51,6 +58,7 @@ export const PaymentsScreen = ({ isTabMode = false }: any) => {
 
   const isStaff = userRole === UserRole.ADMIN || userRole === UserRole.RECEPTIONIST || userRole === UserRole.SUPER_ADMIN;
   const canBulkNotify = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.ADMIN;
+  const isStudent = userRole === UserRole.STUDENT;
 
   const [payments, setPayments] = useState<Payment[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<PaymentStatus | 'all'>('all');
@@ -61,6 +69,59 @@ export const PaymentsScreen = ({ isTabMode = false }: any) => {
   const [selectMode, setSelectMode] = useState(false);
   const [filters] = useState(PAYMENT_FILTERS);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Add Payment Modal State
+  const [formModalVisible, setFormModalVisible] = useState(false);
+  const [formStudentId, setFormStudentId] = useState(isStudent ? user?.email || user?._id || '' : '');
+  const [formAmount, setFormAmount] = useState('');
+  const [formNotes, setFormNotes] = useState('');
+  const [formDate, setFormDate] = useState(new Date());
+  const [paymentModeIndex, setPaymentModeIndex] = useState<IndexPath | IndexPath[]>(new IndexPath(0));
+  const [isSaving, setIsSaving] = useState(false);
+
+  const paymentModes = Object.values(PaymentMode);
+  const selectedPaymentMode = paymentModes[(paymentModeIndex as IndexPath).row];
+
+  useEffect(() => {
+    if (triggerAdd > 0) {
+      handleAddPayment();
+    }
+  }, [triggerAdd]);
+
+  const handleAddPayment = () => {
+    setFormStudentId(isStudent ? user?.email || user?._id || '' : '');
+    setFormAmount('');
+    setFormNotes('');
+    setFormDate(new Date());
+    setPaymentModeIndex(new IndexPath(0));
+    setFormModalVisible(true);
+  };
+
+  const handleSavePayment = async () => {
+    if (!formStudentId || !formAmount) {
+      Alert.alert(i18n.t('error', { defaultValue: 'Error' }), i18n.t('err_fill_required', { defaultValue: 'Please fill in all required fields' }));
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await PaymentService.createPayment({
+        studentId: formStudentId,
+        amount: parseFloat(formAmount),
+        paymentDate: formDate.toISOString(),
+        paymentMode: selectedPaymentMode as PaymentMode,
+        notes: formNotes,
+      });
+      Alert.alert(i18n.t('success', { defaultValue: 'Success' }), i18n.t('msg_payment_recorded', { defaultValue: 'Payment recorded successfully' }));
+      setFormModalVisible(false);
+      fetchPayments();
+    } catch (error) {
+       console.error('Failed to create payment', error);
+       Alert.alert(i18n.t('error', { defaultValue: 'Error' }), i18n.t('err_create_payment', { defaultValue: 'Failed to create payment' }));
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const fetchPayments = async () => {
     setIsLoading(true);
@@ -197,6 +258,9 @@ export const PaymentsScreen = ({ isTabMode = false }: any) => {
             {i18n.t('payments_title')}
           </Text>
           <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
+            <TouchableOpacity onPress={handleAddPayment} style={{ padding: 4 }}>
+              <Icon name="plus-outline" fill={theme['text-basic-color']} style={{ width: 26, height: 26 }} />
+            </TouchableOpacity>
             {canBulkNotify && (
               <Button
                 size="small"
@@ -419,6 +483,73 @@ export const PaymentsScreen = ({ isTabMode = false }: any) => {
           </View>
         )}
       </BottomSheetModal>
+
+      {/* Add Payment Modal */}
+      <BottomSheetModal
+        visible={formModalVisible}
+        onClose={() => setFormModalVisible(false)}
+        title={`${i18n.t('add')} ${i18n.t('nav_payments')}`}
+      >
+        <View style={styles.modalContent}>
+          {!isStudent && (
+            <YInput
+              label="Student ID (Email or ID)"
+              placeholder={i18n.t('placeholder_student_id', { defaultValue: 'Enter student identifier' })}
+              value={formStudentId}
+              onChangeText={setFormStudentId}
+              style={{ marginBottom: spacing.lg }}
+            />
+          )}
+
+          <YInput
+            label="Amount"
+            placeholder={i18n.t('placeholder_amount', { defaultValue: 'Enter amount' })}
+            value={formAmount}
+            onChangeText={setFormAmount}
+            keyboardType="numeric"
+            style={{ marginBottom: spacing.lg }}
+          />
+
+          <View style={{ marginBottom: spacing.lg }}>
+            <Text category="label" style={{ marginBottom: spacing.xs }}>{i18n.t('label_payment_mode', { defaultValue: 'Payment Mode' })}</Text>
+            <Select
+              selectedIndex={paymentModeIndex}
+              onSelect={setPaymentModeIndex}
+              value={selectedPaymentMode.toUpperCase()}
+            >
+              {paymentModes.map((mode) => (
+                <SelectItem key={mode} title={mode.toUpperCase()} />
+              ))}
+            </Select>
+          </View>
+
+          <View style={{ marginBottom: spacing.lg }}>
+             <Text category="label" style={{ marginBottom: spacing.xs }}>{i18n.t('label_date', { defaultValue: 'Date' })}</Text>
+             <Datepicker
+               date={formDate}
+               onSelect={setFormDate}
+             />
+          </View>
+
+          <YInput
+            label="Notes"
+            placeholder={i18n.t('placeholder_notes', { defaultValue: 'Optional notes' })}
+            value={formNotes}
+            onChangeText={setFormNotes}
+            multiline
+            style={{ marginBottom: spacing.xl }}
+          />
+
+          <Button 
+            style={styles.saveButton}
+            onPress={handleSavePayment} 
+            disabled={isSaving}
+            accessoryLeft={isSaving ? () => <Spinner size="small" status="control" /> : undefined}
+          >
+            {isSaving ? '' : 'Record Payment'}
+          </Button>
+        </View>
+      </BottomSheetModal>
     </Layout>
   );
 };
@@ -471,6 +602,10 @@ const styles = StyleSheet.create({
   },
   downloadButton: {
     marginTop: spacing.lg,
+    borderRadius: borderRadius.xl,
+  },
+  saveButton: {
+    marginTop: spacing.xl,
     borderRadius: borderRadius.xl,
   },
 });

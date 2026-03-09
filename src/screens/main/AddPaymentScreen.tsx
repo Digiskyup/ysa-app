@@ -3,7 +3,7 @@ import { Layout, Text, Button, Select, SelectItem, IndexPath, Datepicker, useThe
 import { StyleSheet, View, Alert, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { YInput } from '../../components/YInput';
-import { PaymentMode } from '../../types';
+import { PaymentMode, UserRole } from '../../types';
 import PaymentService from '../../services/PaymentService';
 import { spacing } from '../../theme';
 import { selectLocale } from '../../redux/slices/appSlice';
@@ -16,7 +16,10 @@ export const AddPaymentScreen = ({ navigation }: any) => {
   const dispatch = useAppDispatch(); // Added dispatch hook
   const locale = useAppSelector(selectLocale); // Added locale selector
 
-  const [studentId, setStudentId] = useState('');
+  const user = useAppSelector((state) => state.auth.user);
+  const isStudent = user?.role === UserRole.STUDENT;
+
+  const [studentId, setStudentId] = useState(isStudent ? user?.email || user?._id || '' : '');
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
   const [date, setDate] = useState(new Date());
@@ -59,13 +62,15 @@ export const AddPaymentScreen = ({ navigation }: any) => {
           {`${i18n.t('add')} ${i18n.t('nav_payments')}`}
         </Text>
         
-        <YInput
-          label="Student ID (Email or ID)"
-          placeholder={i18n.t('placeholder_student_id', { defaultValue: 'Enter student identifier' })}
-          value={studentId}
-          onChangeText={setStudentId}
-          style={{ marginBottom: spacing.lg }}
-        />
+        {!isStudent && (
+          <YInput
+            label="Student ID (Email or ID)"
+            placeholder={i18n.t('placeholder_student_id', { defaultValue: 'Enter student identifier' })}
+            value={studentId}
+            onChangeText={setStudentId}
+            style={{ marginBottom: spacing.lg }}
+          />
+        )}
 
         <YInput
           label="Amount"

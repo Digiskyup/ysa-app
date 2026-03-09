@@ -338,7 +338,7 @@ export const ProfileScreen = ({ navigation }: any) => {
             onPress={() => setEditModalVisible(true)}
           />
           <MenuItem
-            icon="lock-outline"
+            icon="lock-closed-outline"
             title={i18n.t('change_password')}
             onPress={() => setPasswordModalVisible(true)}
           />

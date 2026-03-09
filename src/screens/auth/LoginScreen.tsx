@@ -260,6 +260,18 @@ export const LoginScreen = ({ navigation }: any) => {
             <View style={styles.languageContainer}>
               <LanguageSelector style={{ width: 160, alignSelf: 'center' }} />
             </View>
+
+            {/* Kiosk Mode Button */}
+            <View style={styles.kioskContainer}>
+              <Button
+                appearance="ghost"
+                status="basic"
+                accessoryLeft={(props) => <Icon {...props} name="camera-outline" />}
+                onPress={() => navigation.navigate('AttendanceTerminal')}
+              >
+                Launch Kiosk Mode
+              </Button>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -348,5 +360,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.05)',
     paddingTop: spacing.xl,
+  },
+  kioskContainer: {
+    marginTop: spacing.xl,
+    alignItems: 'center',
   },
 });

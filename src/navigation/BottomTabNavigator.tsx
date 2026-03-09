@@ -8,7 +8,7 @@ import { selectLocale } from '../redux/slices/appSlice';
 // Screens
 import { HomeScreen } from '../screens/main/HomeScreen';
 import { PaymentsScreen } from '../screens/main/PaymentsScreen';
-import { AddPaymentScreen } from '../screens/main/AddPaymentScreen';
+
 import { ProfileScreen } from '../screens/main/ProfileScreen';
 import { ApprovalsScreen } from '../screens/main/ApprovalsScreen';
 import { StudentsScreen } from '../screens/main/StudentsScreen';
@@ -40,7 +40,7 @@ const SUPER_ADMIN_TABS: TabConfig[] = [
 const ADMIN_TABS: TabConfig[] = [
   { name: 'Home', component: HomeScreen, icon: 'home-outline', getLabel: () => i18n.t('nav_home', { defaultValue: 'Home' }) },
   { name: 'Students', component: StudentsScreen, icon: 'people-outline', getLabel: () => i18n.t('nav_students') },
-  { name: 'AddPayment', component: AddPaymentScreen, icon: 'add-circle-outline', getLabel: () => i18n.t('add_payment') },
+
   { name: 'Payments', component: PaymentsScreen, icon: 'card-outline', getLabel: () => i18n.t('nav_payments') },
   { name: 'Profile', component: ProfileScreen, icon: 'person-outline', getLabel: () => i18n.t('nav_profile') },
 ];
@@ -48,7 +48,7 @@ const ADMIN_TABS: TabConfig[] = [
 const RECEPTIONIST_TABS: TabConfig[] = [
   { name: 'Home', component: HomeScreen, icon: 'home-outline', getLabel: () => i18n.t('nav_home', { defaultValue: 'Home' }) },
   { name: 'Students', component: StudentsScreen, icon: 'people-outline', getLabel: () => i18n.t('nav_students') },
-  { name: 'AddPayment', component: AddPaymentScreen, icon: 'add-circle-outline', getLabel: () => i18n.t('add_payment') },
+
   { name: 'Payments', component: PaymentsScreen, icon: 'card-outline', getLabel: () => i18n.t('nav_payments') },
   { name: 'Profile', component: ProfileScreen, icon: 'person-outline', getLabel: () => i18n.t('nav_profile') },
 ];

@@ -93,12 +93,14 @@ export const HomeScreen = ({ navigation }: any) => {
           <>
             <Text category='h6' style={styles.sectionTitle}>{i18n.t('quick_actions', { defaultValue: 'Quick Actions' })}</Text>
             <View style={styles.actionsGrid}>
-               <QuickAction 
-                 icon="people-outline" 
-                 title={i18n.t('nav_students', { defaultValue: 'Students' })} 
-                 color={theme['color-info-500']}
-                 onPress={() => navigation.navigate('Students')}
-               />
+               {user?.role !== UserRole.STUDENT && (
+                 <QuickAction 
+                   icon="people-outline" 
+                   title={i18n.t('nav_students', { defaultValue: 'Students' })} 
+                   color={theme['color-info-500']}
+                   onPress={() => navigation.navigate('Students')}
+                 />
+               )}
                <QuickAction 
                  icon="card-outline" 
                  title={i18n.t('nav_payments', { defaultValue: 'Payments' })} 
