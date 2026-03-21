@@ -11,7 +11,7 @@ import { AppNavigator } from './navigation/AppNavigator';
 import NotificationService from './services/NotificationService';
 import { i18n } from './i18n';
 import { selectLocale } from './redux/slices/appSlice';
-
+import apiClient from './services/api/client';
 export const Main = () => {
   const themeMode = useAppSelector((state) => state.app.theme);
   const locale = useAppSelector(selectLocale);
@@ -20,15 +20,28 @@ export const Main = () => {
   // Set synchronously during render so children receive updated locale immediately
   i18n.locale = locale;
 
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+
   useEffect(() => {
     // Initialize notifications
-    NotificationService.registerForPushNotifications();
+    const initPush = async () => {
+      const token = await NotificationService.registerForPushNotifications();
+      if (token && isAuthenticated) {
+        try {
+          await apiClient.put('/users/me', { fcmToken: token });
+        } catch (e) {
+          console.error('Failed to sync push token', e);
+        }
+      }
+    };
+    
+    initPush();
     NotificationService.setupNotificationListeners();
 
     return () => {
       NotificationService.removeNotificationListeners();
     };
-  }, []);
+  }, [isAuthenticated]);
 
   return (
     <SafeAreaProvider>

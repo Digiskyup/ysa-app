@@ -7,6 +7,7 @@ import { spacing, borderRadius } from '../../theme';
 import axios from 'axios';
 import { useAppSelector } from '../../redux/hooks';
 import AttendanceService from '../../services/AttendanceService';
+import { i18n } from '../../i18n';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -141,9 +142,9 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
     return (
       <Layout style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <Text style={{ textAlign: 'center', marginBottom: spacing.md }}>
-          We need your permission to show the camera for the Attendance Kiosk.
+          {i18n.t('kiosk_camera_permission_required')}
         </Text>
-        <Button onPress={requestPermission}>Grant Permission</Button>
+        <Button onPress={requestPermission}>{i18n.t('kiosk_grant_permission')}</Button>
       </Layout>
     );
   }
@@ -162,9 +163,9 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
       }
     } catch (error: any) {
       console.error(error);
-      let errMessage = error.response?.data?.error?.message || error.message || 'Verification failed';
+      let errMessage = error.response?.data?.error?.message || error.message || i18n.t('kiosk_err_verification_failed');
       if (errMessage === 'Network Error') {
-         errMessage = 'Network Error. Could not connect to the server.';
+         errMessage = i18n.t('kiosk_err_network');
       }
       setIdError(errMessage);
     } finally {
@@ -176,7 +177,7 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
     if (isProcessing || !cameraRef.current) return;
     
     setIsProcessing(true);
-    setStatusMessage('Scanning face...');
+    setStatusMessage(i18n.t('kiosk_scanning_face'));
     setStatusType('basic');
 
     let successMsg = '';
@@ -199,9 +200,9 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
       }
     } catch (error: any) {
       console.error(error);
-      let errMessage = error.response?.data?.error?.message || error.message || 'Recognition failed';
+      let errMessage = error.response?.data?.error?.message || error.message || i18n.t('kiosk_err_recognition_failed');
       if (errMessage === 'Network Error' || errMessage.includes('timeout')) {
-         errMessage = 'Could not verify face. Processing timed out. Please bring your face closer and try again.';
+         errMessage = i18n.t('kiosk_err_timeout');
       }
       setStatusMessage(errMessage);
       setStatusType('danger');
@@ -244,7 +245,7 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
       }
     } catch (error: any) {
       console.error(error);
-      const errMessage = error.response?.data?.error?.message || error.message || 'Manual Check-in failed';
+      const errMessage = error.response?.data?.error?.message || error.message || i18n.t('kiosk_err_manual_failed');
       setStatusMessage(errMessage);
       setStatusType('danger');
     } finally {
@@ -277,23 +278,23 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
       {/* Kiosk Header */}
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm, backgroundColor: theme['color-primary-500'] }]}>
         <Text category="h5" style={{ color: 'white', fontWeight: 'bold' }}>
-          Attendance Kiosk
+          {i18n.t('kiosk_title')}
         </Text>
       </View>
 
       {kioskStep === 'input_id' ? (
         <View style={styles.stepContainer}>
           <Text category="h4" style={{ marginBottom: spacing.lg, textAlign: 'center' }}>
-            Welcome to Class
+            {i18n.t('kiosk_welcome')}
           </Text>
           <Text category="s1" appearance="hint" style={{ marginBottom: spacing.xl, textAlign: 'center' }}>
-            Please enter your registered Phone Number or Email to begin.
+            {i18n.t('kiosk_instruction')}
           </Text>
 
           <Layout style={styles.inputContainer}>
             <View style={styles.inputWrapper}>
               <Input
-                placeholder="e.g. 9876543210 or email@domain.com"
+                placeholder={i18n.t('kiosk_input_placeholder')}
                 value={studentIdentifier}
                 onChangeText={setStudentIdentifier}
                 style={{ width: '100%' }}
@@ -317,7 +318,7 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
             disabled={!studentIdentifier || isCheckingId}
             onPress={handleNextStep}
           >
-            {isCheckingId ? 'Verifying Student...' : 'Next: Verify Face'}
+            {isCheckingId ? i18n.t('kiosk_verifying_student') : i18n.t('kiosk_next_verify_face')}
           </Button>
 
           <Button 
@@ -325,7 +326,7 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
             onPress={() => setManualModalVisible(true)}
             style={{ marginTop: spacing.lg, borderRadius: borderRadius.lg }}
           >
-            Manual Check-in
+            {i18n.t('kiosk_manual_checkin')}
           </Button>
 
           <Button 
@@ -334,7 +335,7 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
             onPress={() => navigation.goBack()}
             style={[styles.exitButton, { marginTop: spacing['2xl'] }]}
           >
-            Exit Kiosk mode
+            {i18n.t('kiosk_exit')}
           </Button>
         </View>
       ) : (
@@ -361,7 +362,7 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
                  </Text>
               ) : (
                  <Text category="h6" appearance="hint" style={{ textAlign: 'center' }}>
-                   Please look at the camera
+                   {i18n.t('kiosk_look_camera')}
                  </Text>
               )}
             </View>
@@ -372,7 +373,7 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
               disabled={isProcessing}
               style={styles.captureButton}
             >
-              {isProcessing ? 'Verifying...' : 'Capture & Verify'}
+              {isProcessing ? i18n.t('kiosk_verifying') : i18n.t('kiosk_capture_verify')}
             </Button>
 
             <Button 
@@ -381,7 +382,7 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
               onPress={() => setKioskStep('input_id')}
               style={styles.exitButton}
             >
-              Back
+              {i18n.t('kiosk_back')}
             </Button>
           </View>
         </>
@@ -391,16 +392,16 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
       {manualModalVisible && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text category="h6" style={{ marginBottom: spacing.md }}>Manual Check-in</Text>
+            <Text category="h6" style={{ marginBottom: spacing.md }}>{i18n.t('kiosk_manual_title')}</Text>
             <Text category="s2" appearance="hint" style={{ marginBottom: spacing.lg }}>
-              If face recognition fails or student has no profile photo, use their registered Phone or Email.
+              {i18n.t('kiosk_manual_desc')}
             </Text>
             
             <Layout style={styles.inputContainer}>
-              <Text category="label" style={{ marginBottom: spacing.xs }}>Phone or Email</Text>
+              <Text category="label" style={{ marginBottom: spacing.xs }}>{i18n.t('kiosk_phone_email')}</Text>
               <View style={styles.inputWrapper}>
                 <Input
-                  placeholder="e.g. 9876543210 or email@domain.com"
+                  placeholder={i18n.t('kiosk_input_placeholder')}
                   value={manualIdentifier}
                   onChangeText={setManualIdentifier}
                   style={{ width: '100%' }}
@@ -418,13 +419,13 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
                 style={{ marginRight: spacing.sm }}
                 disabled={isSubmittingManual}
               >
-                Cancel
+                {i18n.t('kiosk_cancel')}
               </Button>
               <Button 
                 onPress={handleManualCheckIn}
                 disabled={isSubmittingManual || !manualIdentifier}
               >
-                {isSubmittingManual ? 'Submitting...' : 'Mark Attendance'}
+                {isSubmittingManual ? i18n.t('kiosk_submitting') : i18n.t('kiosk_mark_attendance')}
               </Button>
             </View>
           </View>

@@ -269,7 +269,7 @@ export const LoginScreen = ({ navigation }: any) => {
                 accessoryLeft={(props) => <Icon {...props} name="camera-outline" />}
                 onPress={() => navigation.navigate('AttendanceTerminal')}
               >
-                Launch Kiosk Mode
+                {i18n.t('kiosk_launch')}
               </Button>
             </View>
           </View>
