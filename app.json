@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "app",
+    "name": "YSA",
     "slug": "app",
     "version": "1.0.0",
     "scheme": "ysa",
@@ -20,12 +20,13 @@
     "android": {
       "package": "com.ysa.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "versionCode": 2
+      "versionCode": 5,
+      "usesCleartextTraffic": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
