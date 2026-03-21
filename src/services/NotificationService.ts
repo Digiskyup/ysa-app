@@ -6,6 +6,7 @@ import { AppNotification, ApiResponse } from '../types';
 import apiClient from './api/client';
 
 // Replace with your OneSignal App ID
+// @ts-ignore
 const ONESIGNAL_APP_ID = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID || 'YOUR_ONESIGNAL_APP_ID_HERE';
 
 class NotificationService {

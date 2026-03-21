@@ -6,8 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing, borderRadius } from '../../theme';
 import axios from 'axios';
 import { useAppSelector } from '../../redux/hooks';
-import apiClient from '../../services/api/client';
-
+import AttendanceService from '../../services/AttendanceService';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -125,6 +124,7 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<'success' | 'danger' | 'basic'>('basic');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'success' | 'warning'>('success');
   const [manualModalVisible, setManualModalVisible] = useState(false);
   const [manualIdentifier, setManualIdentifier] = useState('');
   const [isSubmittingManual, setIsSubmittingManual] = useState(false);
@@ -155,16 +155,17 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
     setIdError(null);
     
     try {
-      const response = await apiClient.post(`/attendance/check-student`, {
-        identifier: studentIdentifier.trim(),
-      });
+      const response = await AttendanceService.checkStudent(studentIdentifier.trim());
       
-      if (response.data.success) {
+      if (response) {
         setKioskStep('capture_face');
       }
     } catch (error: any) {
       console.error(error);
-      const errMessage = error.response?.data?.error?.message || error.message || 'Verification failed';
+      let errMessage = error.response?.data?.error?.message || error.message || 'Verification failed';
+      if (errMessage === 'Network Error') {
+         errMessage = 'Network Error. Could not connect to the server.';
+      }
       setIdError(errMessage);
     } finally {
       setIsCheckingId(false);
@@ -190,26 +191,18 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
          throw new Error('Failed to capture image');
       }
 
-      const formData = new FormData();
-      formData.append('identifier', studentIdentifier);
-      formData.append('image', {
-        uri: photo.uri,
-        name: 'attendance.jpg',
-        type: 'image/jpeg',
-      } as any);
+      const response = await AttendanceService.verify(studentIdentifier, photo.uri);
 
-      const response = await apiClient.post(`/attendance/verify`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      if (response.data.success) {
-        successMsg = response.data.data.message + ` (${response.data.data.studentName})`;
+      if (response) {
+        successMsg = response.message + ` (${response.studentName})`;
+        setToastType(response.alreadyMarked ? 'warning' : 'success');
       }
     } catch (error: any) {
       console.error(error);
-      const errMessage = error.response?.data?.error?.message || error.message || 'Recognition failed';
+      let errMessage = error.response?.data?.error?.message || error.message || 'Recognition failed';
+      if (errMessage === 'Network Error' || errMessage.includes('timeout')) {
+         errMessage = 'Could not verify face. Processing timed out. Please bring your face closer and try again.';
+      }
       setStatusMessage(errMessage);
       setStatusType('danger');
     } finally {
@@ -243,12 +236,11 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
     let successMsg = '';
     
     try {
-      const response = await apiClient.post(`/attendance/manual`, 
-        { identifier: manualIdentifier }
-      );
+      const response = await AttendanceService.manualCheckIn(manualIdentifier);
 
-      if (response.data.success) {
-        successMsg = response.data.data.message + ` (${response.data.data.studentName})`;
+      if (response) {
+        successMsg = response.message + ` (${response.studentName})`;
+        setToastType(response.alreadyMarked ? 'warning' : 'success');
       }
     } catch (error: any) {
       console.error(error);
@@ -441,7 +433,7 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
 
       {/* Global Success Toast */}
       {toastMessage && (
-        <View style={[styles.toastContainer, { bottom: insets.bottom + spacing.xl }]}>
+        <View style={[styles.toastContainer, { bottom: insets.bottom + spacing.xl, backgroundColor: toastType === 'warning' ? '#F57C00' : '#388E3C' }]}>
           <Text style={styles.toastText}>{toastMessage}</Text>
         </View>
       )}

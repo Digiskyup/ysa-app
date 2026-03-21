@@ -10,7 +10,7 @@ import {
 } from '@ui-kitten/components';
 import { NotificationBell } from '../../components/NotificationBell';
 import { selectLocale } from '../../redux/slices/appSlice';
-import { selectUserRole } from '../../redux/slices/authSlice';
+import { selectUserRole, selectUser } from '../../redux/slices/authSlice';
 import { useAppSelector } from '../../redux/hooks';
 import { i18n } from '../../i18n';
 import {
@@ -58,6 +58,7 @@ export const AdminsScreen = ({ isTabMode = false, triggerAdd = 0 }: any) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const locale = useAppSelector(selectLocale); // Listen for language changes
+  const currentUser = useAppSelector(selectUser);
   const currentUserRole = useAppSelector(selectUserRole);
   const isSuperAdmin = currentUserRole === UserRole.SUPER_ADMIN;
 
@@ -116,6 +117,9 @@ export const AdminsScreen = ({ isTabMode = false, triggerAdd = 0 }: any) => {
   }, []);
 
   const handleAdminPress = (admin: AdminUser) => {
+    if (admin._id === currentUser?._id) {
+      return;
+    }
     setSelectedAdmin(admin);
     setEditedPermissions([...(admin.permissions || [])]);
     setEditModalVisible(true);
@@ -363,29 +367,33 @@ export const AdminsScreen = ({ isTabMode = false, triggerAdd = 0 }: any) => {
               </View>
             )}
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.lg, marginBottom: spacing.md }}>
-              <Text category="s2" appearance="hint">
-                {i18n.t('permissions')}
-              </Text>
-              <Button
-                size="tiny"
-                status="primary"
-                accessoryLeft={(props) => <Icon {...props} name="save-outline" />}
-                onPress={handleSavePermissions}
-              >
-                {i18n.t('save_permissions')}
-              </Button>
-            </View>
+            {selectedAdmin._id !== currentUser?._id && selectedAdmin.role !== UserRole.SUPER_ADMIN && (
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.lg, marginBottom: spacing.md }}>
+                  <Text category="s2" appearance="hint">
+                    {i18n.t('permissions')}
+                  </Text>
+                  <Button
+                    size="tiny"
+                    status="primary"
+                    accessoryLeft={(props) => <Icon {...props} name="save-outline" />}
+                    onPress={handleSavePermissions}
+                  >
+                    {i18n.t('save_permissions')}
+                  </Button>
+                </View>
 
-            {ALL_PERMISSIONS.map((perm) => (
-              <View key={perm.key} style={styles.permissionRow}>
-                <Text category="s1" style={{ flex: 1, marginRight: spacing.sm }}>{i18n.t(perm.labelKey)}</Text>
-                <Toggle
-                  checked={editedPermissions.includes(perm.key)}
-                  onChange={() => handleTogglePermission(perm.key)}
-                />
-              </View>
-            ))}
+                {ALL_PERMISSIONS.map((perm) => (
+                  <View key={perm.key} style={styles.permissionRow}>
+                    <Text category="s1" style={{ flex: 1, marginRight: spacing.sm }}>{i18n.t(perm.labelKey)}</Text>
+                    <Toggle
+                      checked={editedPermissions.includes(perm.key)}
+                      onChange={() => handleTogglePermission(perm.key)}
+                    />
+                  </View>
+                ))}
+              </>
+            )}
           </View>
         )}
       </BottomSheetModal>

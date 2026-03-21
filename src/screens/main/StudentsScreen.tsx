@@ -365,7 +365,7 @@ export const StudentsScreen = ({ navigation, isTabMode = false, triggerAdd = 0 }
                   {i18n.t('total_fees')}
                 </Text>
                 <Text category="s1" style={{ fontWeight: '600' }}>
-                  ₹{selectedStudent.totalFees?.toLocaleString() || 0}
+                  ₹{selectedStudent.totalFees || 0}
                 </Text>
               </View>
 
@@ -374,7 +374,7 @@ export const StudentsScreen = ({ navigation, isTabMode = false, triggerAdd = 0 }
                   {i18n.t('fees_paid')}
                 </Text>
                 <Text category="s1" status="success" style={{ fontWeight: '600' }}>
-                  ₹{selectedStudent.feesPaid?.toLocaleString() || 0}
+                  ₹{selectedStudent.feesPaid || 0}
                 </Text>
               </View>
 
@@ -387,7 +387,7 @@ export const StudentsScreen = ({ navigation, isTabMode = false, triggerAdd = 0 }
                   status={(selectedStudent.totalFees || 0) - (selectedStudent.feesPaid || 0) > 0 ? 'danger' : 'success'}
                   style={{ fontWeight: '600' }}
                 >
-                  ₹{((selectedStudent.totalFees || 0) - (selectedStudent.feesPaid || 0)).toLocaleString()}
+                  ₹{(selectedStudent.totalFees || 0) - (selectedStudent.feesPaid || 0)}
                 </Text>
               </View>
 

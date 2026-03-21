@@ -296,7 +296,7 @@ export const ProfileScreen = ({ navigation }: any) => {
                 {i18n.t('total_fees')}
               </Text>
               <Text category="s1" style={{ fontWeight: '600' }}>
-                ₹{user.totalFees?.toLocaleString()}
+                ₹{user.totalFees}
               </Text>
             </View>
             <View style={styles.statDivider} />
@@ -305,7 +305,7 @@ export const ProfileScreen = ({ navigation }: any) => {
                 {i18n.t('fees_paid')}
               </Text>
               <Text category="s1" status="success" style={{ fontWeight: '600' }}>
-                ₹{user.feesPaid?.toLocaleString() || 0}
+                ₹{user.feesPaid || 0}
               </Text>
             </View>
             <View style={styles.statDivider} />
@@ -318,7 +318,7 @@ export const ProfileScreen = ({ navigation }: any) => {
                 status={(user.totalFees || 0) - (user.feesPaid || 0) > 0 ? 'danger' : 'success'}
                 style={{ fontWeight: '600' }}
               >
-                ₹{((user.totalFees || 0) - (user.feesPaid || 0)).toLocaleString()}
+                ₹{(user.totalFees || 0) - (user.feesPaid || 0)}
               </Text>
             </View>
           </View>

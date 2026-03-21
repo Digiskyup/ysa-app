@@ -44,7 +44,7 @@ export const PaymentCard = ({
     }
   };
 
-  const formatCurrency = (amount: number) => `₹${amount.toLocaleString()}`;
+  const formatCurrency = (amount: number) => `₹${amount}`;
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString(i18n.locale, {

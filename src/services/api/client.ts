@@ -7,11 +7,11 @@ import { logout, updateTokens } from '../../redux/slices/authSlice';
 console.log('API_URL:', API_URL);
 
 const apiClient = axios.create({
-  baseURL: 'http://192.168.0.103:3000/api/v1',
+  baseURL: 'http://192.168.0.106:3000/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 30000,
 });
 
 // Flag to prevent multiple refresh attempts
@@ -56,8 +56,13 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
+    // Do not intercept 401s for explicit auth routes like login/signup/refresh
+    const isAuthRoute = originalRequest.url?.includes('/auth/login') || 
+                        originalRequest.url?.includes('/auth/refresh') || 
+                        originalRequest.url?.includes('/auth/signup');
+
     // Handle 401 Unauthorized
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
       if (isRefreshing) {
         // If already refreshing, queue this request
         return new Promise((resolve, reject) => {
@@ -71,7 +76,6 @@ apiClient.interceptors.response.use(
       }
 
       originalRequest._retry = true;
-      isRefreshing = true;
 
       const state = store.getState();
       const refreshToken = state.auth.refreshToken;
@@ -80,6 +84,8 @@ apiClient.interceptors.response.use(
         store.dispatch(logout());
         return Promise.reject(error);
       }
+
+      isRefreshing = true;
 
       try {
         // Call refresh endpoint

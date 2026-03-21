@@ -7,6 +7,7 @@ import { spacing, borderRadius } from '../../theme';
 import axios from 'axios';
 import { useAppSelector } from '../../redux/hooks';
 
+// @ts-ignore
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
 
 export const FaceRegistrationScreen = ({ navigation }: any) => {

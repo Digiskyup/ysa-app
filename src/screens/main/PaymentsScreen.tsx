@@ -72,7 +72,7 @@ export const PaymentsScreen = ({ navigation, isTabMode = false, triggerAdd = 0 }
 
   // Add Payment Modal State
   const [formModalVisible, setFormModalVisible] = useState(false);
-  const [formStudentId, setFormStudentId] = useState(isStudent ? user?.email || user?._id || '' : '');
+  const [formStudentId, setFormStudentId] = useState(isStudent ? user?._id || '' : '');
   const [formAmount, setFormAmount] = useState('');
   const [formNotes, setFormNotes] = useState('');
   const [formDate, setFormDate] = useState(new Date());
@@ -89,7 +89,7 @@ export const PaymentsScreen = ({ navigation, isTabMode = false, triggerAdd = 0 }
   }, [triggerAdd]);
 
   const handleAddPayment = () => {
-    setFormStudentId(isStudent ? user?.email || user?._id || '' : '');
+    setFormStudentId(isStudent ? user?._id || '' : '');
     setFormAmount('');
     setFormNotes('');
     setFormDate(new Date());
@@ -124,6 +124,7 @@ export const PaymentsScreen = ({ navigation, isTabMode = false, triggerAdd = 0 }
   };
 
   const fetchPayments = async () => {
+    if (!accessToken) return;
     setIsLoading(true);
     try {
       const { data } = await PaymentService.getPayments();
@@ -229,7 +230,7 @@ export const PaymentsScreen = ({ navigation, isTabMode = false, triggerAdd = 0 }
     }
   };
 
-  const formatCurrency = (amount: number) => `₹${amount.toLocaleString()}`;
+  const formatCurrency = (amount: number) => `₹${amount}`;
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-IN', {
@@ -259,7 +260,7 @@ export const PaymentsScreen = ({ navigation, isTabMode = false, triggerAdd = 0 }
           </Text>
           <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
             <TouchableOpacity onPress={handleAddPayment} style={{ padding: 4 }}>
-              <Icon name="plus-outline" fill={theme['text-basic-color']} style={{ width: 26, height: 26 }} />
+              <Icon name="add-outline" fill={theme['text-basic-color']} style={{ width: 26, height: 26 }} />
             </TouchableOpacity>
             {canBulkNotify && (
               <Button
@@ -466,16 +467,18 @@ export const PaymentsScreen = ({ navigation, isTabMode = false, triggerAdd = 0 }
                     { text: 'Cancel', style: 'cancel' },
                     { text: 'Reject', style: 'destructive', onPress: async (reason) => {
                       try {
-                        await apiClient.put(`/payments/${selectedPayment._id}/approval`, { status: PaymentStatus.REJECTED, rejectionReason: reason });
+                        await apiClient.put(`/payments/${selectedPayment._id}/approval`, { approved: false, rejectionReason: reason });
                         setModalVisible(false); fetchPayments();
+                        Alert.alert(i18n.t('success', { defaultValue: 'Success' }), i18n.t('msg_payment_rejected_success', { defaultValue: 'Payment rejected successfully!' }));
                       } catch (e) { Alert.alert(i18n.t('error', { defaultValue: 'Error' }), i18n.t('err_reject_payment', { defaultValue: 'Failed to reject payment' })); }
                     }}
                   ])
                 }}>{i18n.t('action_reject', { defaultValue: 'Reject' })}</Button>
                 <Button style={{ flex: 1 }} status="success" onPress={async () => {
                   try {
-                    await apiClient.put(`/payments/${selectedPayment._id}/approval`, { status: PaymentStatus.APPROVED });
+                    await apiClient.put(`/payments/${selectedPayment._id}/approval`, { approved: true });
                     setModalVisible(false); fetchPayments();
+                    Alert.alert(i18n.t('success', { defaultValue: 'Success' }), i18n.t('msg_payment_approved_success', { defaultValue: 'Payment approved successfully!' }));
                   } catch (e) { Alert.alert(i18n.t('error', { defaultValue: 'Error' }), i18n.t('err_approve_payment', { defaultValue: 'Failed to approve payment' })); }
                 }}>{i18n.t('action_approve', { defaultValue: 'Approve' })}</Button>
               </View>

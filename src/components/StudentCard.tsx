@@ -75,7 +75,7 @@ export const StudentCard = ({ student, onPress }: StudentCardProps) => {
               fontWeight: '600',
             }}
           >
-            {isPaid ? 'Paid' : `₹${remaining.toLocaleString()}`}
+            {isPaid ? 'Paid' : `₹${remaining}`}
           </Text>
         </View>
       </View>

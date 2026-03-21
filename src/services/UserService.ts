@@ -73,7 +73,7 @@ export const UserService = {
    * Get student by ID
    */
   async getStudent(id: string): Promise<User> {
-    const response = await apiClient.get<ApiResponse<User>>(`/users/${id}`);
+    const response = await apiClient.get<ApiResponse<User>>(`/users/students/${id}`);
     if (!response.data.data) throw new Error('Failed to fetch student');
     return response.data.data;
   },
