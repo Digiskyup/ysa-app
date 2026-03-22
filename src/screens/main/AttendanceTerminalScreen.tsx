@@ -1,13 +1,13 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { StyleSheet, View, Animated } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FaceDetector from 'expo-face-detector';
 import { Layout, Text, Button, Spinner, useTheme, Input } from '@ui-kitten/components';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing, borderRadius } from '../../theme';
-import { useAppSelector } from '../../redux/hooks';
 import AttendanceService from '../../services/AttendanceService';
 import { i18n } from '../../i18n';
+import { SuccessOverlay } from '../../components/SuccessOverlay';
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -15,6 +15,12 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  offlineBanner: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    backgroundColor: '#B71C1C',
+    alignItems: 'center',
   },
   stepContainer: {
     flex: 1,
@@ -60,7 +66,6 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
   footer: {
-    backgroundColor: 'white',
     padding: spacing.lg,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
@@ -103,54 +108,41 @@ const styles = StyleSheet.create({
   },
   inputContainer: { marginBottom: spacing.lg },
   inputWrapper: { backgroundColor: '#fff' },
-  toastContainer: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    backgroundColor: '#388E3C',
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  toastText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
-    textAlign: 'center',
-  },
 });
 
-// How long a face must be centered before auto-capturing (ms)
-const STABLE_FACE_DURATION = 1500;
 
 export const AttendanceTerminalScreen = ({ navigation }: any) => {
   const [kioskStep, setKioskStep] = useState<'input_id' | 'capture_face'>('input_id');
   const [studentIdentifier, setStudentIdentifier] = useState('');
+  const [studentName, setStudentName] = useState<string | null>(null);
 
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCheckingId, setIsCheckingId] = useState(false);
   const [idError, setIdError] = useState<string | null>(null);
+  const [idAlreadyMarked, setIdAlreadyMarked] = useState(false);
 
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<'success' | 'danger' | 'basic'>('basic');
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [toastType, setToastType] = useState<'success' | 'warning'>('success');
   const [manualModalVisible, setManualModalVisible] = useState(false);
   const [manualIdentifier, setManualIdentifier] = useState('');
   const [isSubmittingManual, setIsSubmittingManual] = useState(false);
+
+  // Offline detection — set true when a Network Error is received
+  const [isOffline, setIsOffline] = useState(false);
+
+  // Success overlay state
+  const [successVisible, setSuccessVisible] = useState(false);
+  const [successTitle, setSuccessTitle] = useState('');
+  const [successSubtitle, setSuccessSubtitle] = useState('');
+  const [successType, setSuccessType] = useState<'success' | 'info'>('success');
 
   // Face detection state
   const [faceDetected, setFaceDetected] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const stableTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const captureInProgress = useRef(false);
+  const [isCaptureInProgress, setIsCaptureInProgress] = useState(false);
 
   const cameraRef = useRef<CameraView>(null);
   const theme = useTheme();
@@ -160,26 +152,24 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
     setFaceDetected(false);
     setCountdown(null);
     captureInProgress.current = false;
+    setIsCaptureInProgress(false);
     if (stableTimer.current) {
       clearTimeout(stableTimer.current);
       stableTimer.current = null;
     }
   }, []);
+
   const handleCaptureRef = useRef<() => void>(() => {});
 
-  // Called by camera's face detection callback
-  // IMPORTANT: Must be before early returns to satisfy Rules of Hooks
   const handleFacesDetected = useCallback(({ faces }: { faces: any[] }) => {
     if (isProcessing || captureInProgress.current || kioskStep !== 'capture_face') return;
 
     if (faces.length === 1) {
       const face = faces[0];
-      // Check if face is roughly centered (bounds heuristic)
       const isRoughlyCenter = face.bounds?.origin?.x > 40 && face.bounds?.origin?.y > 60;
 
       if (isRoughlyCenter && !faceDetected) {
         setFaceDetected(true);
-        // Start stable countdown: 3-2-1 then capture
         let count = 3;
         setCountdown(count);
         const tick = () => {
@@ -195,7 +185,6 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
         stableTimer.current = setTimeout(tick, 700);
       }
     } else {
-      // Face lost or multiple faces — reset
       if (faceDetected && !captureInProgress.current) {
         setFaceDetected(false);
         setCountdown(null);
@@ -219,20 +208,51 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
     );
   }
 
+  const handleNetworkError = () => setIsOffline(true);
+  const handleNetworkSuccess = () => setIsOffline(false);
+
+  const showSuccess = (title: string, subtitle: string, type: 'success' | 'info') => {
+    setSuccessTitle(title);
+    setSuccessSubtitle(subtitle);
+    setSuccessType(type);
+    setSuccessVisible(true);
+  };
+
+  const handleSuccessDismiss = () => {
+    setSuccessVisible(false);
+    setStudentIdentifier('');
+    setStudentName(null);
+    setStatusMessage(null);
+    setStatusType('basic');
+    setKioskStep('input_id');
+    resetCaptureStep();
+  };
+
   const handleNextStep = async () => {
     if (!studentIdentifier || isCheckingId) return;
     setIsCheckingId(true);
     setIdError(null);
+    setIdAlreadyMarked(false);
 
     try {
       const response = await AttendanceService.checkStudent(studentIdentifier.trim());
+      handleNetworkSuccess();
       if (response) {
+        setStudentName(response.studentName);
         resetCaptureStep();
         setKioskStep('capture_face');
       }
     } catch (error: any) {
       let errMessage = error.response?.data?.error?.message || error.message || i18n.t('kiosk_err_verification_failed');
-      if (errMessage === 'Network Error') errMessage = i18n.t('kiosk_err_network');
+      if (errMessage === 'Network Error') {
+        errMessage = i18n.t('kiosk_err_network');
+        handleNetworkError();
+      } else if (errMessage === 'Attendance already marked for today') {
+        // This is actually good news — student is already checked in
+        setIdAlreadyMarked(true);
+        setIdError('Already checked in for today!');
+        return;
+      }
       setIdError(errMessage);
     } finally {
       setIsCheckingId(false);
@@ -242,91 +262,98 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
   const handleCapture = async () => {
     if (isProcessing || captureInProgress.current || !cameraRef.current) return;
     captureInProgress.current = true;
+    setIsCaptureInProgress(true);
     setIsProcessing(true);
     setStatusMessage(i18n.t('kiosk_scanning_face'));
     setStatusType('basic');
-
-    let successMsg = '';
 
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
       if (!photo) throw new Error('Failed to capture image');
 
       const response = await AttendanceService.verify(studentIdentifier, photo.uri);
+      handleNetworkSuccess();
+
       if (response) {
-        successMsg = response.message + ` (${response.studentName})`;
-        setToastType(response.alreadyMarked ? 'warning' : 'success');
+        if (response.alreadyMarked) {
+          showSuccess(
+            'Already Checked In',
+            `${response.studentName} has already marked attendance today.`,
+            'info',
+          );
+        } else {
+          showSuccess(
+            'Attendance Marked!',
+            `Welcome, ${response.studentName}!`,
+            'success',
+          );
+        }
       }
     } catch (error: any) {
       let errMessage = error.response?.data?.error?.message || error.message || i18n.t('kiosk_err_recognition_failed');
       if (errMessage === 'Network Error' || errMessage.includes('timeout')) {
         errMessage = i18n.t('kiosk_err_timeout');
+        handleNetworkError();
       }
-      setStatusMessage(errMessage);
-      setStatusType('danger');
+
+      // If no face enrolled, auto-open manual check-in modal
+      if (errMessage.includes('No face enrolled')) {
+        setStatusMessage('No face enrolled for this student.');
+        setStatusType('danger');
+        setManualIdentifier(studentIdentifier);
+        setTimeout(() => setManualModalVisible(true), 800);
+      } else {
+        setStatusMessage(errMessage);
+        setStatusType('danger');
+      }
+
+      setTimeout(() => {
+        setStatusMessage(null);
+        setStatusType('basic');
+        resetCaptureStep();
+      }, 4000);
     } finally {
       setIsProcessing(false);
       captureInProgress.current = false;
-      resetCaptureStep();
-
-      if (successMsg) {
-        setToastMessage(successMsg);
-        setStudentIdentifier('');
-        setStatusMessage(null);
-        setStatusType('basic');
-        setKioskStep('input_id');
-        setTimeout(() => setToastMessage(null), 3000);
-      } else {
-        setTimeout(() => {
-          setStatusMessage(null);
-          setStatusType('basic');
-        }, 4000);
-      }
+      setIsCaptureInProgress(false);
     }
   };
 
-  // Keep ref in sync so useCallback can call latest handleCapture
   handleCaptureRef.current = handleCapture;
 
   const handleManualCheckIn = async () => {
     if (!manualIdentifier) return;
     setIsSubmittingManual(true);
     setStatusMessage(null);
-    let successMsg = '';
 
     try {
       const response = await AttendanceService.manualCheckIn(manualIdentifier);
+      handleNetworkSuccess();
       if (response) {
-        successMsg = response.message + ` (${response.studentName})`;
-        setToastType(response.alreadyMarked ? 'warning' : 'success');
+        setManualModalVisible(false);
+        setManualIdentifier('');
+        if (response.alreadyMarked) {
+          showSuccess('Already Checked In', `${response.studentName} already marked today.`, 'info');
+        } else {
+          showSuccess('Attendance Marked!', `Welcome, ${response.studentName}!`, 'success');
+        }
       }
     } catch (error: any) {
       const errMessage = error.response?.data?.error?.message || error.message || i18n.t('kiosk_err_manual_failed');
+      if (errMessage === 'Network Error') handleNetworkError();
       setStatusMessage(errMessage);
       setStatusType('danger');
-    } finally {
-      setIsSubmittingManual(false);
-      if (successMsg) {
-        setToastMessage(successMsg);
-        setManualModalVisible(false);
-        setManualIdentifier('');
-        setStudentIdentifier('');
+      setTimeout(() => {
         setStatusMessage(null);
         setStatusType('basic');
-        setKioskStep('input_id');
-        resetCaptureStep();
-        setTimeout(() => setToastMessage(null), 3000);
-      } else {
-        setTimeout(() => {
-          setStatusMessage(null);
-          setStatusType('basic');
-        }, 4000);
-      }
+      }, 4000);
+    } finally {
+      setIsSubmittingManual(false);
     }
   };
 
   const ovalColor = faceDetected
-    ? (countdown !== null ? '#FFC107' : '#4CAF50')  // yellow during countdown, green when stable
+    ? (countdown !== null ? '#FFC107' : '#4CAF50')
     : 'rgba(255,255,255,0.5)';
 
   return (
@@ -337,6 +364,15 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
           {i18n.t('kiosk_title')}
         </Text>
       </View>
+
+      {/* Offline banner */}
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <Text style={{ color: 'white', fontSize: 13, fontWeight: '600' }}>
+            No internet connection — face verification requires network.
+          </Text>
+        </View>
+      )}
 
       {kioskStep === 'input_id' ? (
         <View style={styles.stepContainer}>
@@ -352,7 +388,11 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
               <Input
                 placeholder={i18n.t('kiosk_input_placeholder')}
                 value={studentIdentifier}
-                onChangeText={setStudentIdentifier}
+                onChangeText={(v) => {
+                  setStudentIdentifier(v);
+                  setIdError(null);
+                  setIdAlreadyMarked(false);
+                }}
                 style={{ width: '100%' }}
                 textStyle={{ textAlign: 'center', fontSize: 18 }}
                 size="large"
@@ -363,8 +403,11 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
           </Layout>
 
           {idError && (
-            <Text status="danger" style={{ textAlign: 'center', marginBottom: spacing.md }}>
-              {idError}
+            <Text
+              status={idAlreadyMarked ? 'success' : 'danger'}
+              style={{ textAlign: 'center', marginBottom: spacing.md }}
+            >
+              {idAlreadyMarked ? '✓ ' : ''}{idError}
             </Text>
           )}
 
@@ -400,25 +443,24 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
             style={styles.camera}
             facing="front"
             ref={cameraRef}
-            onFacesDetected={handleFacesDetected}
-            faceDetectorSettings={{
-              mode: FaceDetector.FaceDetectorMode.fast,
-              detectLandmarks: FaceDetector.FaceDetectorLandmarks.none,
-              runClassifications: FaceDetector.FaceDetectorClassifications.none,
-              minDetectionInterval: 200,
-              tracking: true,
-            }}
+            {...({
+              onFacesDetected: handleFacesDetected,
+              faceDetectorSettings: {
+                mode: FaceDetector.FaceDetectorMode.fast,
+                detectLandmarks: FaceDetector.FaceDetectorLandmarks.none,
+                runClassifications: FaceDetector.FaceDetectorClassifications.none,
+                minDetectionInterval: 200,
+                tracking: true,
+              },
+            } as any)}
           >
             <View style={styles.overlay}>
-              {/* Guide oval — changes color based on face detection state */}
               <View style={[styles.guideCircle, { borderColor: ovalColor, borderStyle: faceDetected ? 'solid' : 'dashed' }]} />
 
-              {/* Countdown number */}
               {countdown !== null && (
                 <Text style={styles.countdownOverlay}>{countdown}</Text>
               )}
 
-              {/* Guidance instruction */}
               <Text style={styles.guidanceText}>
                 {isProcessing
                   ? 'Verifying...'
@@ -432,7 +474,7 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
           </CameraView>
 
           {/* Control Panel */}
-          <View style={[styles.footer, { paddingBottom: insets.bottom || spacing.md }]}>
+          <View style={[styles.footer, { paddingBottom: insets.bottom || spacing.md, backgroundColor: theme['background-basic-color-1'] }]}>
             <View style={styles.statusBox}>
               {isProcessing ? (
                 <Spinner status="primary" />
@@ -442,16 +484,15 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
                 </Text>
               ) : (
                 <Text category="s1" appearance="hint" style={{ textAlign: 'center' }}>
-                  {faceDetected ? 'Face detected — auto-capturing soon...' : i18n.t('kiosk_look_camera')}
+                  {studentName ? `Verifying ${studentName}...` : faceDetected ? 'Face detected — auto-capturing soon...' : i18n.t('kiosk_look_camera')}
                 </Text>
               )}
             </View>
 
-            {/* Manual capture fallback button */}
             <Button
               size="giant"
               onPress={handleCapture}
-              disabled={isProcessing || captureInProgress.current}
+              disabled={isProcessing || isCaptureInProgress}
               style={styles.captureButton}
               appearance="outline"
             >
@@ -497,11 +538,17 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
               </View>
             </Layout>
 
+            {statusMessage && (
+              <Text status={statusType} style={{ marginBottom: spacing.sm, textAlign: 'center' }}>
+                {statusMessage}
+              </Text>
+            )}
+
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: spacing.md }}>
               <Button
                 appearance="ghost"
                 status="basic"
-                onPress={() => setManualModalVisible(false)}
+                onPress={() => { setManualModalVisible(false); setManualIdentifier(''); }}
                 style={{ marginRight: spacing.sm }}
                 disabled={isSubmittingManual}
               >
@@ -518,12 +565,15 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
         </View>
       )}
 
-      {/* Global Success Toast */}
-      {toastMessage && (
-        <View style={[styles.toastContainer, { bottom: insets.bottom + spacing.xl, backgroundColor: toastType === 'warning' ? '#F57C00' : '#388E3C' }]}>
-          <Text style={styles.toastText}>{toastMessage}</Text>
-        </View>
-      )}
+      {/* Animated success/info overlay */}
+      <SuccessOverlay
+        visible={successVisible}
+        title={successTitle}
+        subtitle={successSubtitle}
+        type={successType}
+        autoDismissMs={2500}
+        onDismiss={handleSuccessDismiss}
+      />
     </Layout>
   );
 };

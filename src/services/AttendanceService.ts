@@ -37,23 +37,6 @@ export const AttendanceService = {
     return response.data.data;
   },
 
-  async enroll(studentId: string, imageUri: string): Promise<{ message: string }> {
-    const formData = new FormData();
-    formData.append('image', {
-      uri: imageUri,
-      name: 'enroll.jpg',
-      type: 'image/jpeg',
-    } as any);
-
-    const response = await apiClient.post<ApiResponse<any>>(`/attendance/enroll/${studentId}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 120000, // 2 min — face model loading + descriptor extraction can be slow
-    });
-    if (!response.data.success || !response.data.data) {
-      throw new Error(response.data.error?.message || 'Enroll failed');
-    }
-    return response.data.data;
-  }
 };
 
 export default AttendanceService;
