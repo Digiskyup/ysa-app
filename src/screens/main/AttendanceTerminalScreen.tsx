@@ -1,17 +1,16 @@
-import React, { useState, useRef } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useState, useRef, useCallback } from 'react';
+import { StyleSheet, View, Animated } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as FaceDetector from 'expo-face-detector';
 import { Layout, Text, Button, Spinner, useTheme, Input } from '@ui-kitten/components';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing, borderRadius } from '../../theme';
-import axios from 'axios';
 import { useAppSelector } from '../../redux/hooks';
 import AttendanceService from '../../services/AttendanceService';
 import { i18n } from '../../i18n';
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     padding: spacing.md,
     alignItems: 'center',
@@ -36,9 +35,29 @@ const styles = StyleSheet.create({
     width: 250,
     height: 350,
     borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
     borderRadius: 150,
     borderStyle: 'dashed',
+  },
+  guidanceText: {
+    position: 'absolute',
+    bottom: 100,
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+    textAlign: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  countdownOverlay: {
+    position: 'absolute',
+    color: 'white',
+    fontSize: 80,
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
   },
   footer: {
     backgroundColor: 'white',
@@ -61,9 +80,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     borderRadius: borderRadius.lg,
   },
-  exitButton: {
-    alignSelf: 'center',
-  },
+  exitButton: { alignSelf: 'center' },
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -84,17 +101,13 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 10,
   },
-  inputContainer: {
-    marginBottom: spacing.lg,
-  },
-  inputWrapper: {
-    backgroundColor: '#fff',
-  },
+  inputContainer: { marginBottom: spacing.lg },
+  inputWrapper: { backgroundColor: '#fff' },
   toastContainer: {
     position: 'absolute',
     left: spacing.lg,
     right: spacing.lg,
-    backgroundColor: '#388E3C', // Success green
+    backgroundColor: '#388E3C',
     padding: spacing.md,
     borderRadius: borderRadius.md,
     shadowColor: '#000',
@@ -113,15 +126,18 @@ const styles = StyleSheet.create({
   },
 });
 
+// How long a face must be centered before auto-capturing (ms)
+const STABLE_FACE_DURATION = 1500;
+
 export const AttendanceTerminalScreen = ({ navigation }: any) => {
   const [kioskStep, setKioskStep] = useState<'input_id' | 'capture_face'>('input_id');
   const [studentIdentifier, setStudentIdentifier] = useState('');
-  
+
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCheckingId, setIsCheckingId] = useState(false);
   const [idError, setIdError] = useState<string | null>(null);
-  
+
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<'success' | 'danger' | 'basic'>('basic');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -129,15 +145,69 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
   const [manualModalVisible, setManualModalVisible] = useState(false);
   const [manualIdentifier, setManualIdentifier] = useState('');
   const [isSubmittingManual, setIsSubmittingManual] = useState(false);
+
+  // Face detection state
+  const [faceDetected, setFaceDetected] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const stableTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const captureInProgress = useRef(false);
+
   const cameraRef = useRef<CameraView>(null);
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const token = useAppSelector((state) => state.auth.accessToken);
 
-  if (!permission) {
-    return <View />;
-  }
+  const resetCaptureStep = useCallback(() => {
+    setFaceDetected(false);
+    setCountdown(null);
+    captureInProgress.current = false;
+    if (stableTimer.current) {
+      clearTimeout(stableTimer.current);
+      stableTimer.current = null;
+    }
+  }, []);
+  const handleCaptureRef = useRef<() => void>(() => {});
 
+  // Called by camera's face detection callback
+  // IMPORTANT: Must be before early returns to satisfy Rules of Hooks
+  const handleFacesDetected = useCallback(({ faces }: { faces: any[] }) => {
+    if (isProcessing || captureInProgress.current || kioskStep !== 'capture_face') return;
+
+    if (faces.length === 1) {
+      const face = faces[0];
+      // Check if face is roughly centered (bounds heuristic)
+      const isRoughlyCenter = face.bounds?.origin?.x > 40 && face.bounds?.origin?.y > 60;
+
+      if (isRoughlyCenter && !faceDetected) {
+        setFaceDetected(true);
+        // Start stable countdown: 3-2-1 then capture
+        let count = 3;
+        setCountdown(count);
+        const tick = () => {
+          count -= 1;
+          if (count > 0) {
+            setCountdown(count);
+            stableTimer.current = setTimeout(tick, 700);
+          } else {
+            setCountdown(null);
+            handleCaptureRef.current();
+          }
+        };
+        stableTimer.current = setTimeout(tick, 700);
+      }
+    } else {
+      // Face lost or multiple faces — reset
+      if (faceDetected && !captureInProgress.current) {
+        setFaceDetected(false);
+        setCountdown(null);
+        if (stableTimer.current) {
+          clearTimeout(stableTimer.current);
+          stableTimer.current = null;
+        }
+      }
+    }
+  }, [isProcessing, faceDetected, kioskStep]);
+
+  if (!permission) return <View />;
   if (!permission.granted) {
     return (
       <Layout style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -151,22 +221,18 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
 
   const handleNextStep = async () => {
     if (!studentIdentifier || isCheckingId) return;
-    
     setIsCheckingId(true);
     setIdError(null);
-    
+
     try {
       const response = await AttendanceService.checkStudent(studentIdentifier.trim());
-      
       if (response) {
+        resetCaptureStep();
         setKioskStep('capture_face');
       }
     } catch (error: any) {
-      console.error(error);
       let errMessage = error.response?.data?.error?.message || error.message || i18n.t('kiosk_err_verification_failed');
-      if (errMessage === 'Network Error') {
-         errMessage = i18n.t('kiosk_err_network');
-      }
+      if (errMessage === 'Network Error') errMessage = i18n.t('kiosk_err_network');
       setIdError(errMessage);
     } finally {
       setIsCheckingId(false);
@@ -174,8 +240,8 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
   };
 
   const handleCapture = async () => {
-    if (isProcessing || !cameraRef.current) return;
-    
+    if (isProcessing || captureInProgress.current || !cameraRef.current) return;
+    captureInProgress.current = true;
     setIsProcessing(true);
     setStatusMessage(i18n.t('kiosk_scanning_face'));
     setStatusType('basic');
@@ -183,99 +249,89 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
     let successMsg = '';
 
     try {
-      const photo = await cameraRef.current.takePictureAsync({
-        base64: true,
-        quality: 0.5,
-      });
-
-      if (!photo || !photo.base64) {
-         throw new Error('Failed to capture image');
-      }
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
+      if (!photo) throw new Error('Failed to capture image');
 
       const response = await AttendanceService.verify(studentIdentifier, photo.uri);
-
       if (response) {
         successMsg = response.message + ` (${response.studentName})`;
         setToastType(response.alreadyMarked ? 'warning' : 'success');
       }
     } catch (error: any) {
-      console.error(error);
       let errMessage = error.response?.data?.error?.message || error.message || i18n.t('kiosk_err_recognition_failed');
       if (errMessage === 'Network Error' || errMessage.includes('timeout')) {
-         errMessage = i18n.t('kiosk_err_timeout');
+        errMessage = i18n.t('kiosk_err_timeout');
       }
       setStatusMessage(errMessage);
       setStatusType('danger');
     } finally {
       setIsProcessing(false);
-      
+      captureInProgress.current = false;
+      resetCaptureStep();
+
       if (successMsg) {
-         // Instant transition to next student
-         setToastMessage(successMsg);
-         setStudentIdentifier('');
-         setStatusMessage(null);
-         setStatusType('basic');
-         setKioskStep('input_id');
-         
-         setTimeout(() => {
-           setToastMessage(null);
-         }, 3000);
+        setToastMessage(successMsg);
+        setStudentIdentifier('');
+        setStatusMessage(null);
+        setStatusType('basic');
+        setKioskStep('input_id');
+        setTimeout(() => setToastMessage(null), 3000);
       } else {
-         // If failed, let them try again after seeing error on the camera screen
-         setTimeout(() => {
-            setStatusMessage(null);
-            setStatusType('basic');
-         }, 4000);
+        setTimeout(() => {
+          setStatusMessage(null);
+          setStatusType('basic');
+        }, 4000);
       }
     }
   };
+
+  // Keep ref in sync so useCallback can call latest handleCapture
+  handleCaptureRef.current = handleCapture;
 
   const handleManualCheckIn = async () => {
     if (!manualIdentifier) return;
     setIsSubmittingManual(true);
     setStatusMessage(null);
     let successMsg = '';
-    
+
     try {
       const response = await AttendanceService.manualCheckIn(manualIdentifier);
-
       if (response) {
         successMsg = response.message + ` (${response.studentName})`;
         setToastType(response.alreadyMarked ? 'warning' : 'success');
       }
     } catch (error: any) {
-      console.error(error);
       const errMessage = error.response?.data?.error?.message || error.message || i18n.t('kiosk_err_manual_failed');
       setStatusMessage(errMessage);
       setStatusType('danger');
     } finally {
       setIsSubmittingManual(false);
-      
       if (successMsg) {
-         // Auto-close and reset kiosk for next student immediately
-         setToastMessage(successMsg);
-         setManualModalVisible(false);
-         setManualIdentifier('');
-         setStudentIdentifier('');
-         setStatusMessage(null);
-         setStatusType('basic');
-         setKioskStep('input_id');
-         
-         setTimeout(() => {
-           setToastMessage(null);
-         }, 3000);
+        setToastMessage(successMsg);
+        setManualModalVisible(false);
+        setManualIdentifier('');
+        setStudentIdentifier('');
+        setStatusMessage(null);
+        setStatusType('basic');
+        setKioskStep('input_id');
+        resetCaptureStep();
+        setTimeout(() => setToastMessage(null), 3000);
       } else {
-         setTimeout(() => {
-           setStatusMessage(null);
-           setStatusType('basic');
-         }, 4000);
+        setTimeout(() => {
+          setStatusMessage(null);
+          setStatusType('basic');
+        }, 4000);
       }
     }
   };
 
+  const ovalColor = faceDetected
+    ? (countdown !== null ? '#FFC107' : '#4CAF50')  // yellow during countdown, green when stable
+    : 'rgba(255,255,255,0.5)';
+
   return (
     <Layout style={styles.container}>
-      {/* Kiosk Header */}
+      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm, backgroundColor: theme['color-primary-500'] }]}>
         <Text category="h5" style={{ color: 'white', fontWeight: 'bold' }}>
           {i18n.t('kiosk_title')}
@@ -305,15 +361,15 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
               />
             </View>
           </Layout>
-          
+
           {idError && (
-             <Text status="danger" style={{ textAlign: 'center', marginBottom: spacing.md }}>
-               {idError}
-             </Text>
+            <Text status="danger" style={{ textAlign: 'center', marginBottom: spacing.md }}>
+              {idError}
+            </Text>
           )}
 
-          <Button 
-            size="giant" 
+          <Button
+            size="giant"
             style={{ marginTop: spacing.xl, borderRadius: borderRadius.xl }}
             disabled={!studentIdentifier || isCheckingId}
             onPress={handleNextStep}
@@ -321,7 +377,7 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
             {isCheckingId ? i18n.t('kiosk_verifying_student') : i18n.t('kiosk_next_verify_face')}
           </Button>
 
-          <Button 
+          <Button
             appearance="outline"
             onPress={() => setManualModalVisible(true)}
             style={{ marginTop: spacing.lg, borderRadius: borderRadius.lg }}
@@ -329,9 +385,9 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
             {i18n.t('kiosk_manual_checkin')}
           </Button>
 
-          <Button 
-            appearance="ghost" 
-            status="basic" 
+          <Button
+            appearance="ghost"
+            status="basic"
             onPress={() => navigation.goBack()}
             style={[styles.exitButton, { marginTop: spacing['2xl'] }]}
           >
@@ -340,14 +396,38 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
         </View>
       ) : (
         <>
-          <CameraView 
-            style={styles.camera} 
-            facing="front" 
+          <CameraView
+            style={styles.camera}
+            facing="front"
             ref={cameraRef}
+            onFacesDetected={handleFacesDetected}
+            faceDetectorSettings={{
+              mode: FaceDetector.FaceDetectorMode.fast,
+              detectLandmarks: FaceDetector.FaceDetectorLandmarks.none,
+              runClassifications: FaceDetector.FaceDetectorClassifications.none,
+              minDetectionInterval: 200,
+              tracking: true,
+            }}
           >
             <View style={styles.overlay}>
-              {/* Guide circle */}
-              <View style={styles.guideCircle} />
+              {/* Guide oval — changes color based on face detection state */}
+              <View style={[styles.guideCircle, { borderColor: ovalColor, borderStyle: faceDetected ? 'solid' : 'dashed' }]} />
+
+              {/* Countdown number */}
+              {countdown !== null && (
+                <Text style={styles.countdownOverlay}>{countdown}</Text>
+              )}
+
+              {/* Guidance instruction */}
+              <Text style={styles.guidanceText}>
+                {isProcessing
+                  ? 'Verifying...'
+                  : countdown !== null
+                  ? `Hold still... ${countdown}`
+                  : faceDetected
+                  ? 'Face detected! Hold still...'
+                  : 'Position your face inside the oval'}
+              </Text>
             </View>
           </CameraView>
 
@@ -355,31 +435,37 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
           <View style={[styles.footer, { paddingBottom: insets.bottom || spacing.md }]}>
             <View style={styles.statusBox}>
               {isProcessing ? (
-                 <Spinner status="primary" />
+                <Spinner status="primary" />
               ) : statusMessage ? (
-                 <Text status={statusType} category="h6" style={{ textAlign: 'center' }}>
-                   {statusMessage}
-                 </Text>
+                <Text status={statusType} category="h6" style={{ textAlign: 'center' }}>
+                  {statusMessage}
+                </Text>
               ) : (
-                 <Text category="h6" appearance="hint" style={{ textAlign: 'center' }}>
-                   {i18n.t('kiosk_look_camera')}
-                 </Text>
+                <Text category="s1" appearance="hint" style={{ textAlign: 'center' }}>
+                  {faceDetected ? 'Face detected — auto-capturing soon...' : i18n.t('kiosk_look_camera')}
+                </Text>
               )}
             </View>
 
-            <Button 
-              size="giant" 
+            {/* Manual capture fallback button */}
+            <Button
+              size="giant"
               onPress={handleCapture}
-              disabled={isProcessing}
+              disabled={isProcessing || captureInProgress.current}
               style={styles.captureButton}
+              appearance="outline"
             >
-              {isProcessing ? i18n.t('kiosk_verifying') : i18n.t('kiosk_capture_verify')}
+              {isProcessing ? i18n.t('kiosk_verifying') : 'Capture Manually'}
             </Button>
 
-            <Button 
-              appearance="ghost" 
-              status="basic" 
-              onPress={() => setKioskStep('input_id')}
+            <Button
+              appearance="ghost"
+              status="basic"
+              onPress={() => {
+                resetCaptureStep();
+                setKioskStep('input_id');
+                setStatusMessage(null);
+              }}
               style={styles.exitButton}
             >
               {i18n.t('kiosk_back')}
@@ -396,7 +482,7 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
             <Text category="s2" appearance="hint" style={{ marginBottom: spacing.lg }}>
               {i18n.t('kiosk_manual_desc')}
             </Text>
-            
+
             <Layout style={styles.inputContainer}>
               <Text category="label" style={{ marginBottom: spacing.xs }}>{i18n.t('kiosk_phone_email')}</Text>
               <View style={styles.inputWrapper}>
@@ -412,16 +498,16 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
             </Layout>
 
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: spacing.md }}>
-              <Button 
-                appearance="ghost" 
-                status="basic" 
+              <Button
+                appearance="ghost"
+                status="basic"
                 onPress={() => setManualModalVisible(false)}
                 style={{ marginRight: spacing.sm }}
                 disabled={isSubmittingManual}
               >
                 {i18n.t('kiosk_cancel')}
               </Button>
-              <Button 
+              <Button
                 onPress={handleManualCheckIn}
                 disabled={isSubmittingManual || !manualIdentifier}
               >

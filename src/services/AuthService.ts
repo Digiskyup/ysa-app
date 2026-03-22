@@ -22,7 +22,7 @@ export const AuthService = {
   },
 
   /**
-   * Sign up new user
+   * Sign up new user — returns a pending message (account must be approved before login)
    */
   async signup(data: {
     name: string;
@@ -30,12 +30,29 @@ export const AuthService = {
     password: string;
     phone?: string;
     role?: UserRole;
-  }): Promise<AuthResponse> {
-    const response = await apiClient.post<ApiResponse<AuthResponse>>('/auth/signup', data);
-    if (!response.data.success || !response.data.data) {
+    profileImageUri?: string;
+  }): Promise<{ message: string }> {
+    const formData = new FormData();
+    formData.append('name', data.name);
+    formData.append('email', data.email);
+    formData.append('password', data.password);
+    if (data.phone) formData.append('phone', data.phone);
+    if (data.role) formData.append('role', data.role);
+    if (data.profileImageUri) {
+      formData.append('profileImage', {
+        uri: data.profileImageUri,
+        type: 'image/jpeg',
+        name: 'profile.jpg',
+      } as any);
+    }
+
+    const response = await apiClient.post<ApiResponse<{ message: string }>>('/auth/signup', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    if (!response.data.success) {
       throw new Error(response.data.error?.message || 'Signup failed');
     }
-    return response.data.data;
+    return { message: response.data.data?.message || 'Account created. Awaiting approval.' };
   },
 
   /**

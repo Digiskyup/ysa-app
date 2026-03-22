@@ -29,7 +29,9 @@ const authSlice = createSlice({
   reducers: {
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
-      state.error = null;
+      if (action.payload) {
+        state.error = null;
+      }
     },
     setError: (state, action: PayloadAction<string>) => {
       state.error = action.payload;

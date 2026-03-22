@@ -78,9 +78,30 @@ export const LoginScreen = ({ navigation }: any) => {
       dispatch(loginSuccess(response));
       // Navigation is handled automatically by AppNavigator
     } catch (err: any) {
-      const errorMessage = err.response?.data?.error?.message || err.message || i18n.t('err_login_failed');
-      dispatch(setError(errorMessage));
-      Alert.alert(i18n.t('err_login_failed'), errorMessage);
+      const errorCode = err.response?.data?.error?.code;
+      let errorMessage = err.response?.data?.error?.message || err.message || i18n.t('err_login_failed');
+
+      const details = err.response?.data?.error?.details;
+      if (details && Object.keys(details).length > 0) {
+        errorMessage = Object.values(details)[0] as string;
+      }
+
+      if (errorCode === 'PENDING_APPROVAL') {
+        Alert.alert(
+          'Account Pending Approval',
+          'Your account is pending approval by the administrator. You will be notified once approved.',
+          [{ text: 'OK' }]
+        );
+      } else if (errorCode === 'SUSPENDED') {
+        Alert.alert(
+          'Account Suspended',
+          'Your account has been suspended. Please contact support for assistance.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        dispatch(setError(errorMessage));
+        Alert.alert(i18n.t('err_login_failed'), errorMessage);
+      }
     } finally {
       dispatch(setLoading(false));
     }
@@ -261,17 +282,6 @@ export const LoginScreen = ({ navigation }: any) => {
               <LanguageSelector style={{ width: 160, alignSelf: 'center' }} />
             </View>
 
-            {/* Kiosk Mode Button */}
-            <View style={styles.kioskContainer}>
-              <Button
-                appearance="ghost"
-                status="basic"
-                accessoryLeft={(props) => <Icon {...props} name="camera-outline" />}
-                onPress={() => navigation.navigate('AttendanceTerminal')}
-              >
-                {i18n.t('kiosk_launch')}
-              </Button>
-            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -360,9 +370,5 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.05)',
     paddingTop: spacing.xl,
-  },
-  kioskContainer: {
-    marginTop: spacing.xl,
-    alignItems: 'center',
   },
 });

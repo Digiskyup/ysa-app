@@ -7,6 +7,8 @@ import { BottomTabNavigator } from './BottomTabNavigator';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { ResetPasswordScreen } from '../screens/auth/ResetPasswordScreen';
 import { AttendanceTerminalScreen } from '../screens/main/AttendanceTerminalScreen';
+import { PendingApprovalsScreen } from '../screens/main/PendingApprovalsScreen';
+import { FaceRegistrationScreen } from '../screens/main/FaceRegistrationScreen';
 
 import { useAppSelector } from '../redux/hooks';
 
@@ -32,7 +34,8 @@ export const AppNavigator = () => {
             <Stack.Screen name="Main" component={BottomTabNavigator} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
             <Stack.Screen name="AttendanceTerminal" component={AttendanceTerminalScreen} />
-
+            <Stack.Screen name="PendingApprovals" component={PendingApprovalsScreen} />
+            <Stack.Screen name="FaceRegistration" component={FaceRegistrationScreen} />
           </>
         )}
       </Stack.Navigator>

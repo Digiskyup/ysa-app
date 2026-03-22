@@ -283,7 +283,7 @@ export const ProfileScreen = ({ navigation }: any) => {
         </View>
 
         {/* Quick Stats (for students) */}
-        {user?.role === UserRole.STUDENT && user.totalFees && (
+        {user?.role === UserRole.STUDENT && user.totalFees !== undefined && user.totalFees !== null && (
           <View
             style={[
               styles.statsCard,
@@ -324,6 +324,28 @@ export const ProfileScreen = ({ navigation }: any) => {
           </View>
         )}
 
+        {/* Admin/Receptionist Utilities */}
+        {(user?.role === UserRole.SUPER_ADMIN || user?.role === UserRole.ADMIN || user?.role === UserRole.RECEPTIONIST) && (
+          <View
+            style={[
+              styles.menuSection,
+              { backgroundColor: theme['background-basic-color-2'] },
+              shadows.sm,
+            ]}
+          >
+            <MenuItem
+              icon="grid-outline"
+              title={i18n.t('launch_kiosk', { defaultValue: 'Launch Kiosk Mode' })}
+              onPress={() => navigation.navigate('AttendanceTerminal')}
+            />
+            <MenuItem
+              icon="camera-outline"
+              title={i18n.t('face_registration', { defaultValue: 'Register Student Face' })}
+              onPress={() => navigation.navigate('FaceRegistration')}
+            />
+          </View>
+        )}
+
         {/* Menu Sections */}
         <View
           style={[
@@ -337,6 +359,13 @@ export const ProfileScreen = ({ navigation }: any) => {
             title={i18n.t('edit_profile')}
             onPress={() => setEditModalVisible(true)}
           />
+          {user?.role === UserRole.STUDENT && (
+            <MenuItem
+              icon="camera-outline"
+              title={i18n.t('face_registration', { defaultValue: 'Register My Face' })}
+              onPress={() => navigation.navigate('FaceRegistration')}
+            />
+          )}
           <MenuItem
             icon="lock-closed-outline"
             title={i18n.t('change_password')}

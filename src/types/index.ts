@@ -67,6 +67,9 @@ export interface User {
   phone?: string;
   profileImage?: string;
   fcmToken?: string;
+  status?: 'pending_approval' | 'active' | 'suspended';
+  faceAngleCount?: number;
+  faceEnrolledAt?: string;
 
   // Student-specific fields
   course?: CourseInfo;

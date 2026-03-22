@@ -21,6 +21,7 @@ export const AttendanceService = {
 
     const response = await apiClient.post<ApiResponse<any>>('/attendance/verify', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000, // 2 min — face model loading + descriptor extraction can be slow
     });
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error?.message || 'Verify failed');
@@ -46,6 +47,7 @@ export const AttendanceService = {
 
     const response = await apiClient.post<ApiResponse<any>>(`/attendance/enroll/${studentId}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000, // 2 min — face model loading + descriptor extraction can be slow
     });
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error?.message || 'Enroll failed');

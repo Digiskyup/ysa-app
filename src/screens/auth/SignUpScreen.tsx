@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import {
   Layout,
   Text,
@@ -20,20 +19,23 @@ import {
   Platform,
   ScrollView,
   Image,
+  Alert,
+  ActionSheetIOS,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { YInput } from '../../components/YInput';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
-import { loginSuccess, setLoading, setError, clearError } from '../../redux/slices/authSlice';
-import { UserRole, User } from '../../types';
+import { setLoading, setError, clearError } from '../../redux/slices/authSlice';
+import { UserRole } from '../../types';
 import { AuthService } from '../../services/AuthService';
 import { spacing, borderRadius } from '../../theme';
 import { i18n } from '../../i18n';
 import { LanguageSelector } from '../../components/LanguageSelector';
 
-// Only student self-signup by default
 const SIGNUP_ROLES = [
   { label: 'Student', value: UserRole.STUDENT },
+  { label: 'Staff (Receptionist)', value: UserRole.RECEPTIONIST },
 ];
 
 export const SignUpScreen = ({ navigation }: any) => {
@@ -50,15 +52,46 @@ export const SignUpScreen = ({ navigation }: any) => {
   const [selectedRoleIndex, setSelectedRoleIndex] = useState<IndexPath>(new IndexPath(0));
   const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [profileImageUri, setProfileImageUri] = useState<string | null>(null);
 
   const selectedRole = SIGNUP_ROLES[selectedRoleIndex.row];
 
-  React.useEffect(() => {
-    GoogleSignin.configure({
-      webClientId: '252145337666-jvhc0dgsp5n475a3l1oj4a0ericm49i9.apps.googleusercontent.com',
-      offlineAccess: true,
+  const handlePickImage = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Take Photo', 'Choose from Gallery'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) openCamera();
+          else if (buttonIndex === 2) openGallery();
+        }
+      );
+    } else {
+      Alert.alert('Profile Photo', 'Choose an option', [
+        { text: 'Take Photo', onPress: openCamera },
+        { text: 'Choose from Gallery', onPress: openGallery },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+  };
+
+  const openCamera = () => {
+    launchCamera({ mediaType: 'photo', quality: 0.8, saveToPhotos: false }, (response) => {
+      if (response.assets && response.assets[0]?.uri) {
+        setProfileImageUri(response.assets[0].uri);
+      }
     });
-  }, []);
+  };
+
+  const openGallery = () => {
+    launchImageLibrary({ mediaType: 'photo', quality: 0.8, selectionLimit: 1 }, (response) => {
+      if (response.assets && response.assets[0]?.uri) {
+        setProfileImageUri(response.assets[0].uri);
+      }
+    });
+  };
 
   const validateForm = (): boolean => {
     dispatch(clearError());
@@ -108,69 +141,32 @@ export const SignUpScreen = ({ navigation }: any) => {
     dispatch(setLoading(true));
 
     try {
-      const response = await AuthService.signup({
+      await AuthService.signup({
         name: name.trim(),
         email: email.trim(),
         password: password,
         phone: phone.trim(),
         role: selectedRole.value,
+        profileImageUri: profileImageUri || undefined,
       });
-      
-      dispatch(loginSuccess(response));
-      // Navigation is handled automatically by AppNavigator
+
+      // Account is pending approval — show success message and go back to login
+      Alert.alert(
+        'Account Created',
+        'Your account has been submitted for approval. You will receive a notification once your account is approved by the administrator.',
+        [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+      );
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || i18n.t('err_signup_failed');
+      let errorMessage = err.response?.data?.error?.message || err.message || i18n.t('err_signup_failed');
+      const details = err.response?.data?.error?.details;
+      if (details && Object.keys(details).length > 0) {
+        errorMessage = Object.values(details)[0] as string;
+      }
       dispatch(setError(errorMessage));
     } finally {
       dispatch(setLoading(false));
     }
   };
-
-  const handleGoogleSignUp = async () => {
-    dispatch(setLoading(true));
-    try {
-      await GoogleSignin.hasPlayServices();
-      const userInfo = await GoogleSignin.signIn();
-      if (userInfo.data?.idToken) {
-         handleGoogleAuth(userInfo.data.idToken);
-      } else {
-         throw new Error('No idToken found');
-      }
-    } catch (error: any) {
-      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        dispatch(setLoading(false));
-      } else if (error.code === statusCodes.IN_PROGRESS) {
-        // operation (e.g. sign in) is in progress already
-      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        dispatch(setError(i18n.t('err_play_services_unavailable')));
-        dispatch(setLoading(false));
-      } else {
-        dispatch(setError(error.message || i18n.t('err_google_signup_failed')));
-        dispatch(setLoading(false));
-      }
-    }
-  };
-
-  const handleGoogleAuth = async (idToken: string) => {
-    dispatch(setLoading(true));
-    try {
-       const res = await AuthService.googleAuth(idToken);
-       dispatch(loginSuccess(res));
-    } catch (err: any) {
-       dispatch(setError(err.message || i18n.t('err_google_signup_failed')));
-    } finally {
-       dispatch(setLoading(false));
-    }
-  };
-
-  const GoogleIcon = () => (
-    <Image
-      source={{
-        uri: 'https://www.google.com/favicon.ico',
-      }}
-      style={{ width: 20, height: 20 }}
-    />
-  );
 
   const EyeIcon = (props: any) => (
     <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
@@ -207,28 +203,32 @@ export const SignUpScreen = ({ navigation }: any) => {
             </TouchableOpacity>
           </View>
 
-          {/* Logo Section */}
-          <View style={styles.logoContainer}>
-            <Image
-              source={require('../../../assets/icon.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </View>
-
           {/* Title Section */}
           <View style={styles.titleContainer}>
-            <Text
-              category="h4"
-              style={[styles.title, { color: theme['text-basic-color'] }]}
-            >
+            <Text category="h4" style={[styles.title, { color: theme['text-basic-color'] }]}>
               {i18n.t('create_account')}
             </Text>
-            <Text
-              category="s1"
-              style={{ color: theme['text-hint-color'], marginTop: spacing.xs }}
-            >
+            <Text category="s1" style={{ color: theme['text-hint-color'], marginTop: spacing.xs }}>
               {i18n.t('signup_to_start')}
+            </Text>
+          </View>
+
+          {/* Profile Image Picker */}
+          <View style={styles.avatarContainer}>
+            <TouchableOpacity onPress={handlePickImage} style={styles.avatarWrapper}>
+              {profileImageUri ? (
+                <Image source={{ uri: profileImageUri }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatarPlaceholder, { backgroundColor: theme['background-basic-color-3'] }]}>
+                  <Icon name="person-outline" fill={theme['text-hint-color']} style={{ width: 40, height: 40 }} />
+                </View>
+              )}
+              <View style={[styles.cameraIconBadge, { backgroundColor: theme['color-primary-500'] }]}>
+                <Icon name="camera-outline" fill="white" style={{ width: 16, height: 16 }} />
+              </View>
+            </TouchableOpacity>
+            <Text category="c1" appearance="hint" style={{ marginTop: spacing.xs }}>
+              {i18n.t('add_profile_photo', { defaultValue: 'Add Profile Photo' })}
             </Text>
           </View>
 
@@ -285,16 +285,15 @@ export const SignUpScreen = ({ navigation }: any) => {
               <Select
                 selectedIndex={selectedRoleIndex}
                 onSelect={(index) => setSelectedRoleIndex(index as IndexPath)}
-                value={i18n.t(`role_${selectedRole.value.toLowerCase()}`)}
+                value={selectedRole.label}
                 style={styles.select}
                 size="large"
-                disabled={true}
                 accessoryLeft={(props: any) => (
                   <Icon {...props} name="person-outline" fill={theme['text-hint-color']} />
                 )}
               >
                 {SIGNUP_ROLES.map((role) => (
-                  <SelectItem key={role.value} title={i18n.t(`role_${role.value.toLowerCase()}`)} />
+                  <SelectItem key={role.value} title={role.label} />
                 ))}
               </Select>
             </View>
@@ -330,25 +329,15 @@ export const SignUpScreen = ({ navigation }: any) => {
 
             {/* Terms Checkbox */}
             <View style={styles.termsContainer}>
-              <CheckBox
-                checked={acceptTerms}
-                onChange={setAcceptTerms}
-                status="primary"
-              >
+              <CheckBox checked={acceptTerms} onChange={setAcceptTerms} status="primary">
                 {() => (
                   <Text category="c1" style={styles.termsText}>
                     {`${i18n.t('agree_to')} `}
-                    <Text
-                      style={{ color: theme['color-primary-500'] }}
-                      category="c1"
-                    >
+                    <Text style={{ color: theme['color-primary-500'] }} category="c1">
                       {i18n.t('terms_of_service')}
                     </Text>
                     {` ${i18n.t('and')} `}
-                    <Text
-                      style={{ color: theme['color-primary-500'] }}
-                      category="c1"
-                    >
+                    <Text style={{ color: theme['color-primary-500'] }} category="c1">
                       {i18n.t('privacy_policy')}
                     </Text>
                   </Text>
@@ -375,6 +364,7 @@ export const SignUpScreen = ({ navigation }: any) => {
             >
               {isLoading ? '' : i18n.t('create_account', { defaultValue: 'Create Account' })}
             </Button>
+
             {/* Sign In Link */}
             <View style={styles.signinContainer}>
               <View style={{ flexDirection: 'row' }}>
@@ -401,12 +391,8 @@ export const SignUpScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  keyboardView: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: spacing.lg,
@@ -417,44 +403,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.md,
   },
-  backButton: {
-    padding: spacing.xs,
+  backButton: { padding: spacing.xs },
+  titleContainer: { marginBottom: spacing.xl },
+  title: { fontWeight: '700' },
+  avatarContainer: {
+    alignItems: 'center',
+    marginBottom: spacing.xl,
   },
-  logoContainer: {
+  avatarWrapper: {
+    position: 'relative',
+  },
+  avatar: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+  },
+  avatarPlaceholder: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.lg,
   },
-  logo: {
-    width: 100,
-    height: 100,
+  cameraIconBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  titleContainer: {
-    marginBottom: spacing['2xl'],
-  },
-  title: {
-    fontWeight: '700',
-  },
-  formContainer: {
-    width: '100%',
-  },
-  inputWrapper: {
-    marginBottom: spacing.lg,
-  },
-  label: {
-    marginBottom: spacing.xs,
-    fontWeight: '500',
-  },
-  select: {
-    borderRadius: borderRadius.lg,
-  },
-  termsContainer: {
-    marginBottom: spacing.lg,
-  },
-  termsText: {
-    marginLeft: spacing.sm,
-    flex: 1,
-  },
+  formContainer: { width: '100%' },
+  inputWrapper: { marginBottom: spacing.lg },
+  label: { marginBottom: spacing.xs, fontWeight: '500' },
+  select: { borderRadius: borderRadius.lg },
+  termsContainer: { marginBottom: spacing.lg },
+  termsText: { marginLeft: spacing.sm, flex: 1 },
   errorContainer: {
     backgroundColor: 'rgba(244, 67, 54, 0.1)',
     padding: spacing.md,
@@ -465,19 +451,6 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius['2xl'],
     marginBottom: spacing.lg,
     borderWidth: 0,
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: spacing.lg,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-  },
-  googleButton: {
-    borderRadius: borderRadius['2xl'],
-    marginBottom: spacing['2xl'],
   },
   signinContainer: {
     justifyContent: 'center',

@@ -146,6 +146,32 @@ export const UserService = {
   async deleteStaff(id: string): Promise<void> {
     await apiClient.delete(`/users/staff/${id}`);
   },
+
+  /**
+   * Get users pending approval (super-admin only)
+   */
+  async getPendingUsers(): Promise<User[]> {
+    const response = await apiClient.get<ApiResponse<User[]>>('/users/pending');
+    return response.data.data || [];
+  },
+
+  /**
+   * Approve a pending user account (super-admin only)
+   */
+  async approveUser(id: string): Promise<User> {
+    const response = await apiClient.post<ApiResponse<User>>(`/users/${id}/approve`);
+    if (!response.data.data) throw new Error('Failed to approve user');
+    return response.data.data;
+  },
+
+  /**
+   * Reject/suspend a pending user account (super-admin only)
+   */
+  async rejectUser(id: string): Promise<User> {
+    const response = await apiClient.post<ApiResponse<User>>(`/users/${id}/reject`);
+    if (!response.data.data) throw new Error('Failed to reject user');
+    return response.data.data;
+  },
 };
 
 export default UserService;

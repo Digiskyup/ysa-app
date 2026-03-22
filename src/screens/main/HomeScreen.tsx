@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Layout, Text, Button, Icon, useTheme } from '@ui-kitten/components';
 import { StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,12 +7,22 @@ import { selectLocale } from '../../redux/slices/appSlice';
 import { i18n } from '../../i18n';
 import { spacing, borderRadius, shadows } from '../../theme';
 import { UserRole } from '../../types';
+import { UserService } from '../../services/UserService';
 
 export const HomeScreen = ({ navigation }: any) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const user = useAppSelector((state) => state.auth.user);
   const locale = useAppSelector(selectLocale); // Listen for language changes to trigger re-renders
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    if (user?.role === UserRole.SUPER_ADMIN) {
+      UserService.getPendingUsers()
+        .then((users) => setPendingCount(users.length))
+        .catch(() => {});
+    }
+  }, [user?.role]);
 
   const QuickAction = ({ icon, title, onPress, color }: any) => (
     <TouchableOpacity 
@@ -69,23 +79,29 @@ export const HomeScreen = ({ navigation }: any) => {
 
             <Text category='h6' style={styles.sectionTitle}>{i18n.t('quick_actions', { defaultValue: 'Quick Actions' })}</Text>
             <View style={styles.actionsGrid}>
-               <QuickAction 
-                 icon="person-add-outline" 
-                 title={i18n.t('action_add_student', { defaultValue: 'Add Student' })} 
+               <QuickAction
+                 icon="person-add-outline"
+                 title={i18n.t('action_add_student', { defaultValue: 'Add Student' })}
                  color={theme['color-info-500']}
                  onPress={() => navigation.navigate('Users')}
                />
-               <QuickAction 
-                 icon="shield-outline" 
-                 title={i18n.t('add_staff', { defaultValue: 'Add Staff Member' })} 
+               <QuickAction
+                 icon="shield-outline"
+                 title={i18n.t('add_staff', { defaultValue: 'Add Staff Member' })}
                  color={theme['color-warning-500']}
                  onPress={() => navigation.navigate('Users')}
                />
-               <QuickAction 
-                 icon="add-circle-outline" 
-                 title={i18n.t('action_add_payment', { defaultValue: 'Add Payment' })} 
+               <QuickAction
+                 icon="add-circle-outline"
+                 title={i18n.t('action_add_payment', { defaultValue: 'Add Payment' })}
                  color={theme['color-success-500']}
                  onPress={() => navigation.navigate('AddPayment')}
+               />
+               <QuickAction
+                 icon="checkmark-circle-outline"
+                 title={`Pending Approvals${pendingCount > 0 ? ` (${pendingCount})` : ''}`}
+                 color={pendingCount > 0 ? theme['color-danger-500'] : theme['color-basic-500']}
+                 onPress={() => navigation.navigate('PendingApprovals')}
                />
             </View>
           </>
@@ -108,16 +124,24 @@ export const HomeScreen = ({ navigation }: any) => {
                  onPress={() => navigation.navigate('Payments')}
                />
                {(user?.role === UserRole.ADMIN) && (
-                 <QuickAction 
-                   icon="shield-outline" 
-                   title={i18n.t('nav_admins', { defaultValue: 'Staff' })} 
+                 <QuickAction
+                   icon="shield-outline"
+                   title={i18n.t('nav_admins', { defaultValue: 'Staff' })}
                    color={theme['color-warning-500']}
                    onPress={() => navigation.navigate('Admins')}
                  />
                )}
-               <QuickAction 
-                 icon="settings-outline" 
-                 title={i18n.t('nav_profile', { defaultValue: 'Profile' })} 
+               {user?.role !== UserRole.STUDENT && (
+                 <QuickAction
+                   icon="monitor-outline"
+                   title={i18n.t('kiosk_launch', { defaultValue: 'Kiosk Mode' })}
+                   color={theme['color-danger-500']}
+                   onPress={() => navigation.navigate('AttendanceTerminal')}
+                 />
+               )}
+               <QuickAction
+                 icon="settings-outline"
+                 title={i18n.t('nav_profile', { defaultValue: 'Profile' })}
                  color={theme['color-primary-500']}
                  onPress={() => navigation.navigate('Profile')}
                />
