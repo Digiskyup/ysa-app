@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { Layout, Text, Button, Icon, useTheme } from '@ui-kitten/components';
 import { StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,8 +7,12 @@ import { useAppSelector } from '../../redux/hooks';
 import { selectLocale } from '../../redux/slices/appSlice';
 import { i18n } from '../../i18n';
 import { spacing, borderRadius, shadows } from '../../theme';
-import { UserRole } from '../../types';
+import { UserRole, PaymentStatus, ApprovalStatus } from '../../types';
 import { UserService } from '../../services/UserService';
+import { PaymentService } from '../../services/PaymentService';
+import { PermissionService } from '../../services/PermissionService';
+import { UnifiedApprovalCard, UnifiedApprovalItem } from '../../components/UnifiedApprovalCard';
+import { ApprovalDetailModal } from '../../components/ApprovalDetailModal';
 
 export const HomeScreen = ({ navigation }: any) => {
   const theme = useTheme();
@@ -15,14 +20,69 @@ export const HomeScreen = ({ navigation }: any) => {
   const user = useAppSelector((state) => state.auth.user);
   const locale = useAppSelector(selectLocale); // Listen for language changes to trigger re-renders
   const [pendingCount, setPendingCount] = useState(0);
+  const [approvals, setApprovals] = useState<UnifiedApprovalItem[]>([]);
+  const [selectedApproval, setSelectedApproval] = useState<UnifiedApprovalItem | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
-  useEffect(() => {
-    if (user?.role === UserRole.SUPER_ADMIN) {
-      UserService.getPendingUsers()
-        .then((users) => setPendingCount(users.length))
-        .catch(() => {});
+  const getDisplayName = (person: any) => {
+    return (person && typeof person === 'object' && 'name' in person) ? person.name : 'Unknown';
+  };
+
+  const fetchAllApprovals = useCallback(async () => {
+    if (user?.role !== UserRole.SUPER_ADMIN) return;
+
+    try {
+      const [users, paymentsResult, permissionsResult] = await Promise.all([
+        UserService.getPendingUsers(),
+        PaymentService.getPayments({ status: PaymentStatus.PENDING_APPROVAL, limit: 10 }),
+        PermissionService.getApprovals({ status: ApprovalStatus.PENDING, limit: 10 })
+      ]);
+
+      const mappedUsers: UnifiedApprovalItem[] = users.map(u => ({
+        id: u._id,
+        type: 'signup',
+        title: u.name,
+        subtitle: u.email,
+        date: u.createdAt,
+        status: u.status || '',
+        data: u
+      }));
+
+      const mappedPayments: UnifiedApprovalItem[] = paymentsResult.data.map(p => ({
+        id: p._id,
+        type: 'payment',
+        title: `Payment: ₹${p.amount}`,
+        subtitle: `From ${getDisplayName(p.studentId)}`,
+        date: p.createdAt,
+        status: p.status,
+        data: p
+      }));
+
+      const mappedPermissions: UnifiedApprovalItem[] = permissionsResult.data.map(r => ({
+        id: r._id,
+        type: 'permission',
+        title: r.action,
+        subtitle: `Requested by ${getDisplayName(r.requestedBy)}`,
+        date: r.createdAt,
+        status: r.status,
+        data: r
+      }));
+
+      const all = [...mappedUsers, ...mappedPayments, ...mappedPermissions]
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      setApprovals(all.slice(0, 5));
+      setPendingCount(all.length);
+    } catch (error) {
+       console.error('Failed to fetch approvals', error);
     }
   }, [user?.role]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchAllApprovals();
+    }, [fetchAllApprovals])
+  );
 
   const QuickAction = ({ icon, title, onPress, color }: any) => (
     <TouchableOpacity 
@@ -68,14 +128,34 @@ export const HomeScreen = ({ navigation }: any) => {
                 <Text appearance="hint">{i18n.t('dashboard_metrics', { defaultValue: 'Payment Metrics Chart' })}</Text>
             </View>
 
-            <Text category='h6' style={styles.sectionTitle}>{i18n.t('latest_approvals', { defaultValue: 'Latest Approvals' })}</Text>
-            <View style={[styles.emptyCard, { backgroundColor: theme['background-basic-color-2'], marginBottom: spacing.xl }]}>
-                <Icon name="checkbox-outline" fill={theme['text-hint-color']} style={{ width: 48, height: 48, marginBottom: spacing.md }} />
-                <Text appearance="hint">{i18n.t('dashboard_approvals_placeholder', { defaultValue: 'Approval List Placeholder' })}</Text>
-                <Button size="small" appearance="ghost" onPress={() => navigation.navigate('Payments', { screen: 'Approvals' })}>
-                  View All Approvals
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+              <Text category='h6' style={{ fontWeight: '700' }}>{i18n.t('latest_approvals', { defaultValue: 'Latest Approvals' })}</Text>
+              {pendingCount > 5 && (
+                <Button size="tiny" appearance="ghost" onPress={() => navigation.navigate('PendingApprovals')}>
+                  View All
                 </Button>
+              )}
             </View>
+
+            {approvals.length > 0 ? (
+              <View style={{ marginBottom: spacing.xl }}>
+                {approvals.map(item => (
+                  <UnifiedApprovalCard 
+                    key={`${item.type}-${item.id}`} 
+                    item={item} 
+                    onPress={() => {
+                      setSelectedApproval(item);
+                      setModalVisible(true);
+                    }}
+                  />
+                ))}
+              </View>
+            ) : (
+              <View style={[styles.emptyCard, { backgroundColor: theme['background-basic-color-2'], marginBottom: spacing.xl }]}>
+                  <Icon name="checkmark-circle-outline" fill={theme['color-success-500']} style={{ width: 48, height: 48, marginBottom: spacing.md }} />
+                  <Text appearance="hint">{i18n.t('no_pending_signups', { defaultValue: 'No pending approvals' })}</Text>
+              </View>
+            )}
 
             <Text category='h6' style={styles.sectionTitle}>{i18n.t('quick_actions', { defaultValue: 'Quick Actions' })}</Text>
             <View style={styles.actionsGrid}>
@@ -99,7 +179,7 @@ export const HomeScreen = ({ navigation }: any) => {
                />
                <QuickAction
                  icon="checkmark-circle-outline"
-                 title={`Pending Approvals${pendingCount > 0 ? ` (${pendingCount})` : ''}`}
+                 title={`Approvals${pendingCount > 0 ? ` (${pendingCount})` : ''}`}
                  color={pendingCount > 0 ? theme['color-danger-500'] : theme['color-basic-500']}
                  onPress={() => navigation.navigate('PendingApprovals')}
                />
@@ -133,7 +213,7 @@ export const HomeScreen = ({ navigation }: any) => {
                )}
                {user?.role !== UserRole.STUDENT && (
                  <QuickAction
-                   icon="monitor-outline"
+                   icon="desktop-outline"
                    title={i18n.t('kiosk_launch', { defaultValue: 'Kiosk Mode' })}
                    color={theme['color-danger-500']}
                    onPress={() => navigation.navigate('AttendanceTerminal')}
@@ -156,6 +236,13 @@ export const HomeScreen = ({ navigation }: any) => {
         </View>
 
       </ScrollView>
+
+      <ApprovalDetailModal 
+        visible={modalVisible} 
+        item={selectedApproval}
+        onClose={() => setModalVisible(false)}
+        onActionSuccess={fetchAllApprovals}
+      />
     </Layout>
   );
 };

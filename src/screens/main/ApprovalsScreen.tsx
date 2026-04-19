@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   Layout,
   Text,
@@ -27,6 +28,7 @@ import { BottomSheetModal } from '../../components/BottomSheetModal';
 import { EmptyState } from '../../components/EmptyState';
 import { ApprovalRequest, ApprovalStatus, User } from '../../types';
 import PermissionService from '../../services/PermissionService';
+import { UserService } from '../../services/UserService';
 import { spacing, borderRadius } from '../../theme';
 
 // Mock data for approvals
@@ -60,7 +62,29 @@ export const ApprovalsScreen = ({ isTabMode = false }: any) => {
     setIsLoading(true);
     try {
       const { data } = await PermissionService.getApprovals();
-      setApprovals(data);
+      let allApprovals = [...data];
+
+      if (user?.role === 'super-admin') {
+        try {
+          const pendingUsers = await UserService.getPendingUsers();
+          const mappedUsers: any[] = pendingUsers.map(u => ({
+            _id: u._id,
+            action: 'USER_SIGNUP',
+            requestedBy: u,
+            resourceType: 'user_account',
+            resourceId: u._id,
+            payload: { email: u.email, role: u.role, phone: u.phone },
+            status: ApprovalStatus.PENDING,
+            createdAt: u.createdAt,
+            updatedAt: u.updatedAt
+          }));
+          allApprovals = [...allApprovals, ...mappedUsers];
+        } catch (e) {
+          console.warn('Failed to fetch pending users', e);
+        }
+      }
+
+      setApprovals(allApprovals.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     } catch (error) {
       console.error('Failed to fetch approvals', error);
     } finally {
@@ -69,9 +93,11 @@ export const ApprovalsScreen = ({ isTabMode = false }: any) => {
     }
   };
 
-  useEffect(() => {
-    fetchApprovals();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchApprovals();
+    }, [])
+  );
 
   const filteredApprovals = approvals.filter((approval) => {
     if (selectedStatus === 'all') return true;
@@ -88,10 +114,14 @@ export const ApprovalsScreen = ({ isTabMode = false }: any) => {
     setModalVisible(true);
   };
 
-  const handleApprove = async (approvalId: string) => {
+  const handleApprove = async (approvalId: string, action?: string) => {
     setProcessing(true);
     try {
-      await PermissionService.processApproval(approvalId, ApprovalStatus.APPROVED);
+      if (action === 'USER_SIGNUP') {
+        await UserService.approveUser(approvalId);
+      } else {
+        await PermissionService.processApproval(approvalId, ApprovalStatus.APPROVED);
+      }
       // Refresh list
       fetchApprovals();
       setModalVisible(false);
@@ -103,10 +133,14 @@ export const ApprovalsScreen = ({ isTabMode = false }: any) => {
     }
   };
 
-  const handleDeny = async (approvalId: string) => {
+  const handleDeny = async (approvalId: string, action?: string) => {
     setProcessing(true);
     try {
-      await PermissionService.processApproval(approvalId, ApprovalStatus.REJECTED);
+      if (action === 'USER_SIGNUP') {
+        await UserService.rejectUser(approvalId);
+      } else {
+        await PermissionService.processApproval(approvalId, ApprovalStatus.REJECTED);
+      }
       // Refresh list
       fetchApprovals();
       setModalVisible(false);
@@ -134,8 +168,8 @@ export const ApprovalsScreen = ({ isTabMode = false }: any) => {
     <ApprovalCard
       approval={item}
       onPress={() => handleApprovalPress(item)}
-      onApprove={() => handleApprove(item._id)}
-      onDeny={() => handleDeny(item._id)}
+      onApprove={() => handleApprove(item._id, item.action)}
+      onDeny={() => handleDeny(item._id, item.action)}
     />
   );
 
@@ -265,7 +299,7 @@ export const ApprovalsScreen = ({ isTabMode = false }: any) => {
                   style={styles.denyButton}
                   appearance="outline"
                   status="danger"
-                  onPress={() => handleDeny(selectedApproval._id)}
+                  onPress={() => handleDeny(selectedApproval._id, selectedApproval.action)}
                   disabled={processing}
                 >
                   {i18n.t('deny')}
@@ -273,7 +307,7 @@ export const ApprovalsScreen = ({ isTabMode = false }: any) => {
                 <Button
                   style={styles.approveButton}
                   status="success"
-                  onPress={() => handleApprove(selectedApproval._id)}
+                  onPress={() => handleApprove(selectedApproval._id, selectedApproval.action)}
                   disabled={processing}
                   accessoryLeft={
                     processing ? () => <Spinner size="small" status="control" /> : undefined

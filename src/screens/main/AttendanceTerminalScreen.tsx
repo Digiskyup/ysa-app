@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FaceDetector from 'expo-face-detector';
 import { Layout, Text, Button, Spinner, useTheme, Input } from '@ui-kitten/components';
@@ -8,6 +8,7 @@ import { spacing, borderRadius } from '../../theme';
 import AttendanceService from '../../services/AttendanceService';
 import { i18n } from '../../i18n';
 import { SuccessOverlay } from '../../components/SuccessOverlay';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -268,10 +269,16 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
     setStatusType('basic');
 
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
-      if (!photo) throw new Error('Failed to capture image');
+      const rawPhoto = await cameraRef.current.takePictureAsync({ quality: 0.7 });
+      if (!rawPhoto) throw new Error('Failed to capture image');
 
-      const response = await AttendanceService.verify(studentIdentifier, photo.uri);
+      const manipResult = await ImageManipulator.manipulateAsync(
+        rawPhoto.uri,
+        [{ resize: { width: 500 } }],
+        { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      const response = await AttendanceService.verify(studentIdentifier, manipResult.uri);
       handleNetworkSuccess();
 
       if (response) {
@@ -375,68 +382,70 @@ export const AttendanceTerminalScreen = ({ navigation }: any) => {
       )}
 
       {kioskStep === 'input_id' ? (
-        <View style={styles.stepContainer}>
-          <Text category="h4" style={{ marginBottom: spacing.lg, textAlign: 'center' }}>
-            {i18n.t('kiosk_welcome')}
-          </Text>
-          <Text category="s1" appearance="hint" style={{ marginBottom: spacing.xl, textAlign: 'center' }}>
-            {i18n.t('kiosk_instruction')}
-          </Text>
-
-          <Layout style={styles.inputContainer}>
-            <View style={styles.inputWrapper}>
-              <Input
-                placeholder={i18n.t('kiosk_input_placeholder')}
-                value={studentIdentifier}
-                onChangeText={(v) => {
-                  setStudentIdentifier(v);
-                  setIdError(null);
-                  setIdAlreadyMarked(false);
-                }}
-                style={{ width: '100%' }}
-                textStyle={{ textAlign: 'center', fontSize: 18 }}
-                size="large"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-          </Layout>
-
-          {idError && (
-            <Text
-              status={idAlreadyMarked ? 'success' : 'danger'}
-              style={{ textAlign: 'center', marginBottom: spacing.md }}
-            >
-              {idAlreadyMarked ? '✓ ' : ''}{idError}
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <ScrollView contentContainerStyle={styles.stepContainer} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <Text category="h4" style={{ marginBottom: spacing.lg, textAlign: 'center' }}>
+              {i18n.t('kiosk_welcome')}
             </Text>
-          )}
+            <Text category="s1" appearance="hint" style={{ marginBottom: spacing.xl, textAlign: 'center' }}>
+              {i18n.t('kiosk_instruction')}
+            </Text>
 
-          <Button
-            size="giant"
-            style={{ marginTop: spacing.xl, borderRadius: borderRadius.xl }}
-            disabled={!studentIdentifier || isCheckingId}
-            onPress={handleNextStep}
-          >
-            {isCheckingId ? i18n.t('kiosk_verifying_student') : i18n.t('kiosk_next_verify_face')}
-          </Button>
+            <Layout style={styles.inputContainer}>
+              <View style={styles.inputWrapper}>
+                <Input
+                  placeholder={i18n.t('kiosk_input_placeholder')}
+                  value={studentIdentifier}
+                  onChangeText={(v) => {
+                    setStudentIdentifier(v);
+                    setIdError(null);
+                    setIdAlreadyMarked(false);
+                  }}
+                  style={{ width: '100%' }}
+                  textStyle={{ textAlign: 'center', fontSize: 18 }}
+                  size="large"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+            </Layout>
 
-          <Button
-            appearance="outline"
-            onPress={() => setManualModalVisible(true)}
-            style={{ marginTop: spacing.lg, borderRadius: borderRadius.lg }}
-          >
-            {i18n.t('kiosk_manual_checkin')}
-          </Button>
+            {idError && (
+              <Text
+                status={idAlreadyMarked ? 'success' : 'danger'}
+                style={{ textAlign: 'center', marginBottom: spacing.md }}
+              >
+                {idAlreadyMarked ? '✓ ' : ''}{idError}
+              </Text>
+            )}
 
-          <Button
-            appearance="ghost"
-            status="basic"
-            onPress={() => navigation.goBack()}
-            style={[styles.exitButton, { marginTop: spacing['2xl'] }]}
-          >
-            {i18n.t('kiosk_exit')}
-          </Button>
-        </View>
+            <Button
+              size="giant"
+              style={{ marginTop: spacing.xl, borderRadius: borderRadius.xl }}
+              disabled={!studentIdentifier || isCheckingId}
+              onPress={handleNextStep}
+            >
+              {isCheckingId ? i18n.t('kiosk_verifying_student') : i18n.t('kiosk_next_verify_face')}
+            </Button>
+
+            <Button
+              appearance="outline"
+              onPress={() => setManualModalVisible(true)}
+              style={{ marginTop: spacing.lg, borderRadius: borderRadius.lg }}
+            >
+              {i18n.t('kiosk_manual_checkin')}
+            </Button>
+
+            <Button
+              appearance="ghost"
+              status="basic"
+              onPress={() => navigation.goBack()}
+              style={[styles.exitButton, { marginTop: spacing['2xl'] }]}
+            >
+              {i18n.t('kiosk_exit')}
+            </Button>
+          </ScrollView>
+        </KeyboardAvoidingView>
       ) : (
         <>
           <CameraView

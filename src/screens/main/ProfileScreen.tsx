@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { launchImageLibrary } from 'react-native-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useAppSelector, useAppDispatch } from '../../redux/hooks';
 import { logout, updateUser } from '../../redux/slices/authSlice';
 import { toggleTheme, setLocale, selectTheme, selectLocale, Locale } from '../../redux/slices/appSlice';
@@ -161,9 +162,15 @@ export const ProfileScreen = ({ navigation }: any) => {
         setIsUploadingAvatar(true);
         const imageUri = result.assets[0].uri;
         if (!imageUri) return;
-        
-        // Upload the image
-        const newAvatarUrl = await UserService.uploadAvatar(imageUri);
+
+        const compressedUri = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [{ resize: { width: 500 } }],
+          { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+        ).then((r) => r.uri);
+
+        // Upload the compressed image
+        const newAvatarUrl = await UserService.uploadAvatar(compressedUri);
         
         // Update user in Redux
         dispatch(updateUser({ profileImage: newAvatarUrl }));

@@ -75,6 +75,7 @@ export const LoginScreen = ({ navigation }: any) => {
 
     try {
       const response = await AuthService.login(email.trim(), password.trim());
+      console.log(response);
       dispatch(loginSuccess(response));
       // Navigation is handled automatically by AppNavigator
     } catch (err: any) {
@@ -99,6 +100,7 @@ export const LoginScreen = ({ navigation }: any) => {
           [{ text: 'OK' }]
         );
       } else {
+        console.log(errorMessage);
         dispatch(setError(errorMessage));
         Alert.alert(i18n.t('err_login_failed'), errorMessage);
       }

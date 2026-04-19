@@ -7,6 +7,7 @@ import { logout, updateTokens } from '../../redux/slices/authSlice';
 console.log('API_URL:', API_URL);
 
 const apiClient = axios.create({
+  // baseURL: 'http://192.168.0.100:3000/api/v1',
   baseURL: 'https://ysa-back.hrishikeshbaidya.in/api/v1',
   headers: {
     'Content-Type': 'application/json',

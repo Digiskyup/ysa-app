@@ -9,6 +9,7 @@ import { useAppSelector } from '../../redux/hooks';
 import { UserRole } from '../../types';
 import { AnimatedFaceHint, FaceHintStep } from '../../components/AnimatedFaceHint';
 import { SuccessOverlay } from '../../components/SuccessOverlay';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 // Guided enrollment steps with instructions and animated hint directions
 const ENROLLMENT_STEPS: { label: string; instruction: string; hint: FaceHintStep }[] = [
@@ -17,6 +18,7 @@ const ENROLLMENT_STEPS: { label: string; instruction: string; hint: FaceHintStep
   { label: 'Turn Right', instruction: 'Slowly turn your head to the right', hint: 'right' },
   { label: 'Tilt Up', instruction: 'Tilt your chin slightly upward', hint: 'up' },
   { label: 'Tilt Down', instruction: 'Tilt your chin slightly downward', hint: 'down' },
+  { label: 'Natural Smile', instruction: 'Look straight and give a natural smile', hint: 'straight' },
 ];
 
 export const FaceRegistrationScreen = ({ navigation }: any) => {
@@ -111,6 +113,7 @@ export const FaceRegistrationScreen = ({ navigation }: any) => {
 
   const startCountdownCapture = () => {
     if (isProcessing || !cameraRef.current) return;
+    setStatusMessage(null);
     setCountdown(3);
     let count = 3;
 
@@ -132,8 +135,15 @@ export const FaceRegistrationScreen = ({ navigation }: any) => {
     setIsProcessing(true);
 
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
-      if (!photo) throw new Error('Failed to capture image');
+      const rawPhoto = await cameraRef.current.takePictureAsync({ quality: 0.7 });
+      if (!rawPhoto) throw new Error('Failed to capture image');
+
+      const manipResult = await ImageManipulator.manipulateAsync(
+        rawPhoto.uri,
+        [{ resize: { width: 500 } }],
+        { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      const photo = { uri: manipResult.uri };
 
       triggerFlash();
 

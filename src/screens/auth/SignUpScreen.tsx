@@ -24,6 +24,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { YInput } from '../../components/YInput';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { setLoading, setError, clearError } from '../../redux/slices/authSlice';
@@ -32,6 +33,15 @@ import { AuthService } from '../../services/AuthService';
 import { spacing, borderRadius } from '../../theme';
 import { i18n } from '../../i18n';
 import { LanguageSelector } from '../../components/LanguageSelector';
+
+async function compressImage(uri: string): Promise<string> {
+  const result = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: 500 } }],
+    { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+  );
+  return result.uri;
+}
 
 const SIGNUP_ROLES = [
   { label: 'Student', value: UserRole.STUDENT },
@@ -80,7 +90,10 @@ export const SignUpScreen = ({ navigation }: any) => {
   const openCamera = () => {
     launchCamera({ mediaType: 'photo', quality: 0.8, saveToPhotos: false }, (response) => {
       if (response.assets && response.assets[0]?.uri) {
-        setProfileImageUri(response.assets[0].uri);
+        (async () => {
+          const compressed = await compressImage(response.assets![0].uri!);
+          setProfileImageUri(compressed);
+        })();
       }
     });
   };
@@ -88,7 +101,10 @@ export const SignUpScreen = ({ navigation }: any) => {
   const openGallery = () => {
     launchImageLibrary({ mediaType: 'photo', quality: 0.8, selectionLimit: 1 }, (response) => {
       if (response.assets && response.assets[0]?.uri) {
-        setProfileImageUri(response.assets[0].uri);
+        (async () => {
+          const compressed = await compressImage(response.assets![0].uri!);
+          setProfileImageUri(compressed);
+        })();
       }
     });
   };
